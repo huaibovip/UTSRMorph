@@ -2,6 +2,7 @@
 Here is the official implementation of the paper.
 
 ## Update progress
+4/24/2024 - UTSRMorph trained in OASIS datasets with dice loss is improved and the model trained in IXI datasets is publicy available!
 4/15/2024 - UTSRMorph trained in OASIS datasets is now publicly available!
 
 ## Requirments

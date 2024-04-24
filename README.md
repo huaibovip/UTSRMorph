@@ -23,3 +23,9 @@ Our dataset is avaiable on [Google Drive]().
 
 ## Contact
 If you have any questions, feel free to contact zhangrunshi@buaa.edu.cn
+
+## Reference and Acknowledgments
+[TransMorph](https://github.com/junyuchen245/TransMorph_Transformer_for_Medical_Image_Registration)
+[Swin Transformer](https://github.com/microsoft/Swin-Transformer)
+[VoxelMorph](https://github.com/voxelmorph/voxelmorph)
+[TransMatch](https://github.com/tzayuan/TransMatch_TMI)

@@ -17,7 +17,7 @@ The rest 2 datasets are the same as OASIS, the only difference is the path of da
 
 ## Datasets
 We offer 3 datasets: OASIS, IXI and our own dataset.
-You can download the OASIS dataset from [OASIS]().
+You can download the OASIS dataset from [OASIS_CT_MR](https://drive.google.com/file/d/1R6bapU2UuAtmUTOrTJxMyDq-KxX8uZCo/view?usp=drive_link), the afterprocessed dataset can be downloaded from [OASIS_CT_MR](https://drive.google.com/file/d/1StPmkMCHKdM3a-yJQh8-bW6n6RkmaM92/view?usp=drive_link).
 The IXI dataset can be downloaded from [IXI]().
 Our dataset is avaiable on [Google Drive]().
 

@@ -18,7 +18,7 @@ The rest 2 datasets are the same as OASIS, the only difference is the path of da
 ## Datasets
 We offer 4 datasets: OASIS, Abdominal MR-CT, IXI and our own dataset.
 You can download the Abdominial MR-CT dataset from [Abdominial MR-CT](https://drive.google.com/file/d/1R6bapU2UuAtmUTOrTJxMyDq-KxX8uZCo/view?usp=drive_link), the afterprocessed dataset can be downloaded from [Abdominial MR-CT](https://drive.google.com/file/d/1StPmkMCHKdM3a-yJQh8-bW6n6RkmaM92/view?usp=drive_link).
-The IXI dataset can be downloaded from [IXI]().
+The IXI and OASIS dataset can be downloaded from [TransMorph](https://github.com/junyuchen245/TransMorph_Transformer_for_Medical_Image_Registration).
 Our dataset is avaiable on [Google Drive]().
 
 ## Contact

@@ -13,15 +13,15 @@ Here is the official implementation of the paper.
 We trained our models depending on Pytorch 1.13.1 and Python 3.8.
 
 ## Train and infer
-Our experiments are tested on 3 datasets: OASIS, IXI and our own dataset.
+UTSRMorph are tested on 4 datasets: OASIS, IXI, Abdominal MR-CT and CMF tumor MR-CT datasets.
 If you want to train OASIS dataset, you only need to run the following script: `train_UTSRMorph_oasis.py`. After the training stage, the model will be saved in `experients` folder.
 To infer the trained model, you just need to run `infer_UTSRMorph.py` script.
-The rest 2 datasets are the same as OASIS, the only difference is the path of dataset.
+The rest 3 datasets are the same as OASIS, the only difference is the path of dataset.
 
 ## Datasets
-We offer 4 datasets: OASIS, Abdominal MR-CT, IXI and CMF tumor MR-CT dataset.
-You can download the Abdominial MR-CT dataset from [Abdominial MR-CT](https://drive.google.com/file/d/1R6bapU2UuAtmUTOrTJxMyDq-KxX8uZCo/view?usp=drive_link), the afterprocessed dataset can be downloaded from [Abdominial MR-CT](https://drive.google.com/file/d/1StPmkMCHKdM3a-yJQh8-bW6n6RkmaM92/view?usp=drive_link).
+4 datasets: OASIS, IXI, Abdominal MR-CT and CMF tumor MR-CT dataset.
 The IXI and OASIS dataset can be downloaded from [TransMorph](https://github.com/junyuchen245/TransMorph_Transformer_for_Medical_Image_Registration).
+You can download the Abdominial MR-CT dataset from [Abdominial MR-CT](https://drive.google.com/file/d/1R6bapU2UuAtmUTOrTJxMyDq-KxX8uZCo/view?usp=drive_link), the afterprocessed dataset can be downloaded from [Abdominial MR-CT](https://drive.google.com/file/d/1StPmkMCHKdM3a-yJQh8-bW6n6RkmaM92/view?usp=drive_link).
 The CMF tumor MR-CT dataset is avaiable on [Google Drive](https://drive.google.com/file/d/1Ugi_C_0JdyAxuzYT55t_Be-hAn-iNuLK/view?usp=drive_link).
 
 ## Contact

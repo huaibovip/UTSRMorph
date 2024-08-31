@@ -1,19 +1,3 @@
-'''
-TransMorph model
-
-Swin-Transformer code retrieved from:
-https://github.com/SwinTransformer/Swin-Transformer-Semantic-Segmentation
-
-Original paper:
-Liu, Z., Lin, Y., Cao, Y., Hu, H., Wei, Y., Zhang, Z., ... & Guo, B. (2021).
-Swin transformer: Hierarchical vision transformer using shifted windows.
-arXiv preprint arXiv:2103.14030.
-
-Modified and tested by:
-Junyu Chen
-jchen245@jhmi.edu
-Johns Hopkins University
-'''
 
 import torch
 import torch.nn as nn
@@ -1233,10 +1217,10 @@ class UTSRMorph(nn.Module):
                                            )
 
         self.up0 = SR(embed_dim*8, embed_dim*4, skip_channels=embed_dim*4 if if_transskip else 0, use_batchnorm=False)
-        self.up1 = SR(embed_dim*4, embed_dim*2, skip_channels=embed_dim*2 if if_transskip else 0, use_batchnorm=False)  # 384, 20, 20, 64
-        self.up2 = SR(embed_dim*2, embed_dim, skip_channels=embed_dim if if_transskip else 0, use_batchnorm=False)  # 384, 40, 40, 64
-        self.up3 = SR(embed_dim, config.reg_head_chan, skip_channels=embed_dim//2 if if_convskip else 0, use_batchnorm=False)  # 384, 80, 80, 128
-        #self.up4 = SR(embed_dim//2, config.reg_head_chan, skip_channels=config.reg_head_chan if if_convskip else 0, use_batchnorm=False)  # 384, 160, 160, 256
+        self.up1 = SR(embed_dim*4, embed_dim*2, skip_channels=embed_dim*2 if if_transskip else 0, use_batchnorm=False)
+        self.up2 = SR(embed_dim*2, embed_dim, skip_channels=embed_dim if if_transskip else 0, use_batchnorm=False)
+        self.up3 = SR(embed_dim, config.reg_head_chan, skip_channels=embed_dim//2 if if_convskip else 0, use_batchnorm=False)
+        #self.up4 = SR(embed_dim//2, config.reg_head_chan, skip_channels=config.reg_head_chan if if_convskip else 0, use_batchnorm=False)
         self.c1 = Conv3dReLU(2, embed_dim//2, 3, 1, use_batchnorm=False)
         #self.c2 = Conv3dReLU(2, config.reg_head_chan, 3, 1, use_batchnorm=False)
         self.reg_head = RegistrationHead(
@@ -1271,7 +1255,6 @@ class UTSRMorph(nn.Module):
         x = self.up2(x, f3)
         x = self.up3(x, f4)
         flow = self.reg_head(x)
-        #flow = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False)(flow)
         flow = self.up(flow)
         out = self.spatial_trans(source, flow)
         return out, flow#, out_feats

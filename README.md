@@ -6,6 +6,7 @@ Here is the <strong><big>PyTorch implementation</big></strong> of the paper:
 [R. Zhang et al., "UTSRMorph: A Unified Transformer and Superresolution Network for Unsupervised Medical Image Registration," in IEEE Transactions on Medical Imaging, doi: 10.1109/TMI.2024.3467919.](https://ieeexplore.ieee.org/document/10693635))
 
 ## Update progress
+23/9/2024 - The [Paper](https://ieeexplore.ieee.org/document/10693635) is accepted in IEEE TMI.
 
 31/8/2024 - UTSRMorph trained in Abdominal MR-CT and CMF tumor MR-CT datasets is now publicly available!
 

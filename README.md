@@ -1,7 +1,7 @@
 # (TMI2024)UTSRMorph: Unified Transformer and Super-resolution Network for UnsupervisedMedical Image Registration.
 <strong><big>Keywords:</big></strong> Deformable image registration, ConvNets, Transformer, Cross-attention, Superresolution.
 
-Here is the PyTorch implementation of the paper:
+Here is the <strong><big>PyTorch implementation</big></strong> of the paper:
 
 [R. Zhang et al., "UTSRMorph: A Unified Transformer and Superresolution Network for Unsupervised Medical Image Registration," in IEEE Transactions on Medical Imaging, doi: 10.1109/TMI.2024.3467919.](https://ieeexplore.ieee.org/document/10693635))
 

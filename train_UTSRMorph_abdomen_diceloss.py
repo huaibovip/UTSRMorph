@@ -80,8 +80,8 @@ def main():
     batch_size = 1
     # train_dir = '/home/zrs/AD_xiong/xiong/train/CT/data/'
     # val_dir = '/home/zrs/AD_xiong/xiong/test/CT/data/'
-    train_dir = 'E:/abdomen/train/CT/data/'
-    val_dir = 'E:/abdomen/test/CT/data/'
+    train_dir = '/root/share/abdomen/train/CT/data/'
+    val_dir = '/root/share/abdomen/test/CT/data/'
     weights = [1, 1, 1]  # loss weights
     save_dir = 'UTSRMorph_ncc{}_dsc{}_diffusion{}/'.format(
         weights[0], weights[1], weights[2])

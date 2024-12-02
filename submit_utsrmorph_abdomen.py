@@ -105,11 +105,11 @@ def jacobian_determinant_vxm(disp):
 
 
 def main():
-    test_dir = r'/home/zrs/AD_xiong/xiong/test/CT/data/'
-    #save_dir = '/home/mh/PythonCodes/xiong_result/rawct/'
+    test_dir = '/root/share/abdomen/test/CT/data/'
+    #save_dir = './result/rawct/'
     model_idx = -1
     weights = [1, 1, 1]
-    model_folder = 'UTSRMorph_ncc_{}_dsc{}_diffusion_{}/'.format(
+    model_folder = 'UTSRMorph_ncc{}_dsc{}_diffusion{}/'.format(
         weights[0], weights[1], weights[2])
     model_dir = 'experiments/' + model_folder
     config = CONFIGS_TM['UTSRMorph']

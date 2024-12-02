@@ -1,10 +1,11 @@
-import math, pickle
+import pickle
+
 import numpy as np
-import torch.nn.functional as F
-import torch, sys
-from torch import nn
 import pystrum.pynd.ndutils as nd
+import torch
+import torch.nn.functional as F
 from scipy.ndimage import gaussian_filter
+from torch import nn
 
 
 def pkload(fname):

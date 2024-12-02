@@ -2,6 +2,7 @@ import random
 
 
 class Uniform(object):
+
     def __init__(self, a, b):
         self.a = a
         self.b = b
@@ -11,6 +12,7 @@ class Uniform(object):
 
 
 class Gaussian(object):
+
     def __init__(self, mean, std):
         self.mean = mean
         self.std = std
@@ -20,6 +22,7 @@ class Gaussian(object):
 
 
 class Constant(object):
+
     def __init__(self, val):
         self.val = val
 

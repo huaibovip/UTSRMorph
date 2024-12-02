@@ -1,10 +1,13 @@
-import os, glob
-import torch, sys
-from torch.utils.data import Dataset
-from .data_utils import pkload
-import matplotlib.pyplot as plt
+import glob
+import os
 import random
+
+import matplotlib.pyplot as plt
 import numpy as np
+import torch
+from torch.utils.data import Dataset
+
+from .data_utils import pkload
 
 
 class OASISBrainDataset(Dataset):

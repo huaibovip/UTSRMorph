@@ -1,11 +1,13 @@
-import math
 import numpy as np
-import torch.nn.functional as F
-import torch, sys
-from torch import nn
 import pystrum.pynd.ndutils as nd
+import torch
+import torch.nn.functional as F
 from scipy.ndimage import gaussian_filter
+from torch import nn
+
 from surface_distance import *
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -164,6 +166,8 @@ def jacobian_determinant_vxm(disp):
         return dfdx[..., 0] * dfdy[..., 1] - dfdy[..., 0] * dfdx[..., 1]
 
 import re
+
+
 def process_label():
     #process labeling information for FreeSurfer
     seg_table = [0, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 24, 26,

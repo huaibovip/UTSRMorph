@@ -26,6 +26,8 @@ out_indices (tuple(int)): Indices of Transformer blocks to output features. Defa
 reg_head_chan (int): Number of channels in the registration head (i.e., the final convolutional layer) 
 img_size (int | tuple(int)): Input image size, e.g., (160, 192, 224)
 '''
+
+
 def get_UTSRMorph_config():
     config = ml_collections.ConfigDict()
     config.if_transskip = True

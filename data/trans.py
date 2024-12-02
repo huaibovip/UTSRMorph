@@ -1,6 +1,5 @@
 import math
 import random
-import sys
 from typing import Sequence
 
 import numpy as np

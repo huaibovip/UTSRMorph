@@ -1,18 +1,19 @@
-
-import glob, sys
-import os, losses, utils_CMF
+import glob
+import os
 import time
 
-from torch.utils.data import DataLoader
-from data import datasets, trans
 import numpy as np
 import torch
-from torchvision import transforms
-import matplotlib.pyplot as plt
 from natsort import natsorted
-from models_CMF.UTSRMorph import CONFIGS as CONFIGS_TM
+from torch.utils.data import DataLoader
+from torchvision import transforms
+
 import models_CMF.UTSRMorph as UTSRMorph
-from scipy.ndimage.interpolation import map_coordinates, zoom
+import utils_CMF
+from data import datasets, trans
+from models_CMF.UTSRMorph import CONFIGS as CONFIGS_TM
+
+
 #from models_rdp import RDP
 def compterpoint(movingpoint):
     point = np.nonzero(movingpoint)
@@ -36,20 +37,30 @@ def main():
     save_dir = '/home/buaaa302/pythoncodes/cmfresult/rdp/'
     model_idx = -1
     weights = [1, 1, 1]
-    model_folder = 'UTSRMorph_ncc_{}_dsc{}_diffusion_{}/'.format(weights[0], weights[1], weights[2])
+    model_folder = 'UTSRMorph_ncc_{}_dsc{}_diffusion_{}/'.format(
+        weights[0], weights[1], weights[2])
     model_dir = 'experiments/' + model_folder
     img_size = (128, 192, 224)
     config = CONFIGS_TM['UTSRMorph']
     model = UTSRMorph.UTSRMorph(config)
-    best_model = torch.load(model_dir + natsorted(os.listdir(model_dir))[model_idx])['state_dict']
+    best_model = torch.load(
+        model_dir + natsorted(os.listdir(model_dir))[model_idx])['state_dict']
     print('Best model: {}'.format(natsorted(os.listdir(model_dir))[model_idx]))
     model.load_state_dict(best_model)
     model.cuda()
     reg_model = utils_CMF.register_model(img_size, 'nearest')
     reg_model.cuda()
-    test_composed = transforms.Compose([trans.NumpyType((np.float32, np.int16)),])
-    test_set = datasets.CMFInferDataset(glob.glob(test_dir + '*.npy'), transforms=test_composed)
-    test_loader = DataLoader(test_set, batch_size=1, shuffle=False, num_workers=1, pin_memory=True, drop_last=True)
+    test_composed = transforms.Compose([
+        trans.NumpyType((np.float32, np.int16)),
+    ])
+    test_set = datasets.CMFInferDataset(glob.glob(test_dir + '*.npy'),
+                                        transforms=test_composed)
+    test_loader = DataLoader(test_set,
+                             batch_size=1,
+                             shuffle=False,
+                             num_workers=1,
+                             pin_memory=True,
+                             drop_last=True)
     file_names = glob.glob(test_dir + '*.npy')
     with torch.no_grad():
         stdy_idx = 0
@@ -81,8 +92,8 @@ def main():
             effectindex = []
             distancepro = []
             for j in range(9):
-                if (movingfro[j, 0] + movingfro[j, 1] + movingfro[j, 2] != 0 and fixfro[j, 0] + fixfro[j, 1] + fixfro[
-                    j, 2] != 0):
+                if (movingfro[j, 0] + movingfro[j, 1] + movingfro[j, 2] != 0
+                        and fixfro[j, 0] + fixfro[j, 1] + fixfro[j, 2] != 0):
                     dx = movingfro[j, 0] - fixfro[j, 0]
                     dy = movingfro[j, 1] - fixfro[j, 1]
                     dz = movingfro[j, 2] - fixfro[j, 2]
@@ -92,11 +103,12 @@ def main():
                     effectindex.append(j)
                     preerror[stdy_idx * 9 + j, 0] = tre
 
-            flow = output[1].squeeze().permute(1, 2, 3, 0)  # (160, 192, 224, 3)
+            flow = output[1].squeeze().permute(1, 2, 3,
+                                               0)  # (160, 192, 224, 3)
             fix_point = fixfro[np.newaxis, ...]  # (1, 300, 3)
             dvf_Data = flow.cuda().data.cpu().numpy().squeeze()  # 如果要保存的话，可以保存
-            data = [torch.from_numpy(t).cuda() for t in
-                    [fix_point, dvf_Data]]  # 由于point_spatial_transformer使用了torch，组装在一起
+            data = [torch.from_numpy(t).cuda() for t in [fix_point, dvf_Data]
+                    ]  # 由于point_spatial_transformer使用了torch，组装在一起
             warp_point = utils_CMF.point_spatial_transformer(data)
 
             warp_point = warp_point.cuda().data.cpu().numpy().squeeze()
@@ -106,19 +118,26 @@ def main():
                 dz = movingfro[j, 2] - warp_point[j, 2]
                 tre = np.sqrt(dx * dx + dy * dy + dz * dz)
                 pointtre.append(tre)
-                aftererror[stdy_idx * 9 + j,0] = tre
+                aftererror[stdy_idx * 9 + j, 0] = tre
             stdy_idx += 1
             tar = y.detach().cpu().numpy()[0, 0, :, :, :]
-            jac_det = utils_CMF.jacobian_determinant_vxm(output[1].detach().cpu().numpy()[0, :, :, :, :])
-            eval_det.update(np.sum(jac_det <= 0) / np.prod(tar.shape), x.size(0))
-            print('det < 0: {}'.format(np.sum(jac_det <= 0) / np.prod(tar.shape)))
+            jac_det = utils_CMF.jacobian_determinant_vxm(
+                output[1].detach().cpu().numpy()[0, :, :, :, :])
+            eval_det.update(
+                np.sum(jac_det <= 0) / np.prod(tar.shape), x.size(0))
+            print('det < 0: {}'.format(
+                np.sum(jac_det <= 0) / np.prod(tar.shape)))
         print('deformed det: {}, std: {}'.format(eval_det.avg, eval_det.std))
-        print('propoint error: {}, std: {}'.format(np.mean(trepro), np.std(trepro)))
-        print('propoint error: {}, std: {}'.format(np.mean(pointtre), np.std(pointtre)))
-        np.savetxt(save_dir + "utsrmorph_pre.txt", preerror,fmt='%.3f')
-        np.savetxt(save_dir + "utsrmorph_after.txt", aftererror,fmt='%.3f')
+        print('propoint error: {}, std: {}'.format(np.mean(trepro),
+                                                   np.std(trepro)))
+        print('propoint error: {}, std: {}'.format(np.mean(pointtre),
+                                                   np.std(pointtre)))
+        np.savetxt(save_dir + "utsrmorph_pre.txt", preerror, fmt='%.3f')
+        np.savetxt(save_dir + "utsrmorph_after.txt", aftererror, fmt='%.3f')
         time_end = time.time()
         print(str((time_end - time_start) / 4.0))
+
+
 if __name__ == '__main__':
     '''
     GPU configuration

@@ -83,7 +83,7 @@ def main():
     train_dir = '/root/share/abdomen/train/CT/data/'
     val_dir = '/root/share/abdomen/test/CT/data/'
     weights = [1, 1, 1]  # loss weights
-    save_dir = 'UTSRMorph_ncc{}_dsc{}_diffusion{}/'.format(
+    save_dir = 'UTSRMorph_mi{}_dsc{}_diffusion{}/'.format(
         weights[0], weights[1], weights[2])
     if not os.path.exists('experiments/' + save_dir):
         os.makedirs('experiments/' + save_dir)
@@ -305,3 +305,4 @@ if __name__ == '__main__':
     print('If the GPU is available? ' + str(GPU_avai))
     torch.manual_seed(0)
     main()
+    os.system("/usr/bin/shutdown")

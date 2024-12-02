@@ -298,3 +298,4 @@ if __name__ == '__main__':
     print('If the GPU is available? ' + str(GPU_avai))
     torch.manual_seed(0)
     main()
+    os.system("/usr/bin/shutdown")

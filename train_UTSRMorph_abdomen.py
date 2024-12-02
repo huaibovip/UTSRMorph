@@ -82,7 +82,7 @@ def main():
     train_dir = '/root/share/abdomen/train/CT/data/'
     val_dir = '/root/share/abdomen/test/CT/data/'
     weights = [1, 1, 1]  # loss weights
-    save_dir = 'UTSRMorph_ncc{}_diffusion{}/'.format(weights[0], weights[2])
+    save_dir = 'UTSRMorph_mi{}_diffusion{}/'.format(weights[0], weights[2])
     if not os.path.exists('experiments/' + save_dir):
         os.makedirs('experiments/' + save_dir)
     if not os.path.exists('logs/' + save_dir):
@@ -146,7 +146,7 @@ def main():
                            lr=updated_lr,
                            weight_decay=0,
                            amsgrad=True)
-    criterion_ncc = losses.MutualInformation()
+    criterion_ncc = losses.MIND_loss()
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
     writer = SummaryWriter(log_dir='logs/' + save_dir)
@@ -273,3 +273,4 @@ if __name__ == '__main__':
     print('If the GPU is available? ' + str(GPU_avai))
     torch.manual_seed(0)
     main()
+    os.system("/usr/bin/shutdown")

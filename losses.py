@@ -458,7 +458,7 @@ class MIND_loss(torch.nn.Module):
         mind_var = torch.mean(mind, 1, keepdim=True)
         mind_var = torch.clamp(mind_var, (mind_var.mean() * 0.001).item(),
                                (mind_var.mean() * 1000).item())
-        mind /= mind_var
+        mind = mind / mind_var
         mind = torch.exp(-mind)
 
         # permute to have same ordering as C++ code

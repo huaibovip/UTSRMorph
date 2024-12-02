@@ -257,3 +257,4 @@ if __name__ == '__main__':
     print('Currently using: ' + torch.cuda.get_device_name(GPU_iden))
     print('If the GPU is available? ' + str(GPU_avai))
     main()
+    os.system("/usr/bin/shutdown")

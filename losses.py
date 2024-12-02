@@ -1,29 +1,39 @@
+import math
+from math import exp
+
+import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
-import numpy as np
-from math import exp
-import math
-import torch.nn as nn
+
 
 def gaussian(window_size, sigma):
-    gauss = torch.Tensor([exp(-(x - window_size // 2) ** 2 / float(2 * sigma ** 2)) for x in range(window_size)])
+    gauss = torch.Tensor([
+        exp(-(x - window_size // 2)**2 / float(2 * sigma**2))
+        for x in range(window_size)
+    ])
     return gauss / gauss.sum()
 
 
 def create_window(window_size, channel):
     _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
-    _2D_window = _1D_window.mm(_1D_window.t()).float().unsqueeze(0).unsqueeze(0)
-    window = Variable(_2D_window.expand(channel, 1, window_size, window_size).contiguous())
+    _2D_window = _1D_window.mm(
+        _1D_window.t()).float().unsqueeze(0).unsqueeze(0)
+    window = Variable(
+        _2D_window.expand(channel, 1, window_size, window_size).contiguous())
     return window
 
 
 def create_window_3D(window_size, channel):
     _1D_window = gaussian(window_size, 1.5).unsqueeze(1)
     _2D_window = _1D_window.mm(_1D_window.t())
-    _3D_window = _1D_window.mm(_2D_window.reshape(1, -1)).reshape(window_size, window_size,
-                                                                  window_size).float().unsqueeze(0).unsqueeze(0)
-    window = Variable(_3D_window.expand(channel, 1, window_size, window_size, window_size).contiguous())
+    _3D_window = _1D_window.mm(_2D_window.reshape(1, -1)).reshape(
+        window_size, window_size,
+        window_size).float().unsqueeze(0).unsqueeze(0)
+    window = Variable(
+        _3D_window.expand(channel, 1, window_size, window_size,
+                          window_size).contiguous())
     return window
 
 
@@ -35,14 +45,20 @@ def _ssim(img1, img2, window, window_size, channel, size_average=True):
     mu2_sq = mu2.pow(2)
     mu1_mu2 = mu1 * mu2
 
-    sigma1_sq = F.conv2d(img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
-    sigma2_sq = F.conv2d(img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
-    sigma12 = F.conv2d(img1 * img2, window, padding=window_size // 2, groups=channel) - mu1_mu2
+    sigma1_sq = F.conv2d(
+        img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
+    sigma2_sq = F.conv2d(
+        img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
+    sigma12 = F.conv2d(
+        img1 * img2, window, padding=window_size // 2,
+        groups=channel) - mu1_mu2
 
-    C1 = 0.01 ** 2
-    C2 = 0.03 ** 2
+    C1 = 0.01**2
+    C2 = 0.03**2
 
-    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+    ssim_map = ((2 * mu1_mu2 + C1) *
+                (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
+                                       (sigma1_sq + sigma2_sq + C2))
 
     if size_average:
         return ssim_map.mean()
@@ -59,14 +75,20 @@ def _ssim_3D(img1, img2, window, window_size, channel, size_average=True):
 
     mu1_mu2 = mu1 * mu2
 
-    sigma1_sq = F.conv3d(img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
-    sigma2_sq = F.conv3d(img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
-    sigma12 = F.conv3d(img1 * img2, window, padding=window_size // 2, groups=channel) - mu1_mu2
+    sigma1_sq = F.conv3d(
+        img1 * img1, window, padding=window_size // 2, groups=channel) - mu1_sq
+    sigma2_sq = F.conv3d(
+        img2 * img2, window, padding=window_size // 2, groups=channel) - mu2_sq
+    sigma12 = F.conv3d(
+        img1 * img2, window, padding=window_size // 2,
+        groups=channel) - mu1_mu2
 
-    C1 = 0.01 ** 2
-    C2 = 0.03 ** 2
+    C1 = 0.01**2
+    C2 = 0.03**2
 
-    ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
+    ssim_map = ((2 * mu1_mu2 + C1) *
+                (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) *
+                                       (sigma1_sq + sigma2_sq + C2))
 
     if size_average:
         return ssim_map.mean()
@@ -75,6 +97,7 @@ def _ssim_3D(img1, img2, window, window_size, channel, size_average=True):
 
 
 class SSIM(torch.nn.Module):
+
     def __init__(self, window_size=11, size_average=True):
         super(SSIM, self).__init__()
         self.window_size = window_size
@@ -85,7 +108,8 @@ class SSIM(torch.nn.Module):
     def forward(self, img1, img2):
         (_, channel, _, _) = img1.size()
 
-        if channel == self.channel and self.window.data.type() == img1.data.type():
+        if channel == self.channel and self.window.data.type(
+        ) == img1.data.type():
             window = self.window
         else:
             window = create_window(self.window_size, channel)
@@ -97,10 +121,12 @@ class SSIM(torch.nn.Module):
             self.window = window
             self.channel = channel
 
-        return _ssim(img1, img2, window, self.window_size, channel, self.size_average)
+        return _ssim(img1, img2, window, self.window_size, channel,
+                     self.size_average)
 
 
 class SSIM3D(torch.nn.Module):
+
     def __init__(self, window_size=11, size_average=True):
         super(SSIM3D, self).__init__()
         self.window_size = window_size
@@ -111,7 +137,8 @@ class SSIM3D(torch.nn.Module):
     def forward(self, img1, img2):
         (_, channel, _, _, _) = img1.size()
 
-        if channel == self.channel and self.window.data.type() == img1.data.type():
+        if channel == self.channel and self.window.data.type(
+        ) == img1.data.type():
             window = self.window
         else:
             window = create_window_3D(self.window_size, channel)
@@ -123,7 +150,8 @@ class SSIM3D(torch.nn.Module):
             self.window = window
             self.channel = channel
 
-        return 1-_ssim_3D(img1, img2, window, self.window_size, channel, self.size_average)
+        return 1 - _ssim_3D(img1, img2, window, self.window_size, channel,
+                            self.size_average)
 
 
 def ssim(img1, img2, window_size=11, size_average=True):
@@ -173,6 +201,7 @@ class Grad(torch.nn.Module):
             grad *= self.loss_mult
         return grad
 
+
 class Grad3d(torch.nn.Module):
     """
     N-D gradient loss.
@@ -200,6 +229,7 @@ class Grad3d(torch.nn.Module):
             grad *= self.loss_mult
         return grad
 
+
 class Grad3DiTV(torch.nn.Module):
     """
     N-D gradient loss.
@@ -216,23 +246,28 @@ class Grad3DiTV(torch.nn.Module):
         dy = dy * dy
         dx = dx * dx
         dz = dz * dz
-        d = torch.mean(torch.sqrt(dx+dy+dz+1e-6))
+        d = torch.mean(torch.sqrt(dx + dy + dz + 1e-6))
         grad = d / 3.0
         return grad
 
+
 class DisplacementRegularizer(torch.nn.Module):
+
     def __init__(self, energy_type):
         super().__init__()
         self.energy_type = energy_type
 
-    def gradient_dx(self, fv): return (fv[:, 2:, 1:-1, 1:-1] - fv[:, :-2, 1:-1, 1:-1]) / 2
+    def gradient_dx(self, fv):
+        return (fv[:, 2:, 1:-1, 1:-1] - fv[:, :-2, 1:-1, 1:-1]) / 2
 
-    def gradient_dy(self, fv): return (fv[:, 1:-1, 2:, 1:-1] - fv[:, 1:-1, :-2, 1:-1]) / 2
+    def gradient_dy(self, fv):
+        return (fv[:, 1:-1, 2:, 1:-1] - fv[:, 1:-1, :-2, 1:-1]) / 2
 
-    def gradient_dz(self, fv): return (fv[:, 1:-1, 1:-1, 2:] - fv[:, 1:-1, 1:-1, :-2]) / 2
+    def gradient_dz(self, fv):
+        return (fv[:, 1:-1, 1:-1, 2:] - fv[:, 1:-1, 1:-1, :-2]) / 2
 
     def gradient_txyz(self, Txyz, fn):
-        return torch.stack([fn(Txyz[:,i,...]) for i in [0, 1, 2]], dim=1)
+        return torch.stack([fn(Txyz[:, i, ...]) for i in [0, 1, 2]], dim=1)
 
     def compute_gradient_norm(self, displacement, flag_l1=False):
         dTdx = self.gradient_txyz(displacement, self.gradient_dx)
@@ -242,7 +277,7 @@ class DisplacementRegularizer(torch.nn.Module):
             norms = torch.abs(dTdx) + torch.abs(dTdy) + torch.abs(dTdz)
         else:
             norms = dTdx**2 + dTdy**2 + dTdz**2
-        return torch.mean(norms)/3.0
+        return torch.mean(norms) / 3.0
 
     def compute_bending_energy(self, displacement):
         dTdx = self.gradient_txyz(displacement, self.gradient_dx)
@@ -254,7 +289,8 @@ class DisplacementRegularizer(torch.nn.Module):
         dTdxy = self.gradient_txyz(dTdx, self.gradient_dy)
         dTdyz = self.gradient_txyz(dTdy, self.gradient_dz)
         dTdxz = self.gradient_txyz(dTdx, self.gradient_dz)
-        return torch.mean(dTdxx**2 + dTdyy**2 + dTdzz**2 + 2*dTdxy**2 + 2*dTdxz**2 + 2*dTdyz**2)
+        return torch.mean(dTdxx**2 + dTdyy**2 + dTdzz**2 + 2 * dTdxy**2 +
+                          2 * dTdxz**2 + 2 * dTdyz**2)
 
     def forward(self, disp, _):
         if self.energy_type == 'bending':
@@ -266,6 +302,7 @@ class DisplacementRegularizer(torch.nn.Module):
         else:
             raise Exception('Not recognised local regulariser!')
         return energy
+
 
 class DiceLoss(nn.Module):
     """Dice and Xentropy loss"""
@@ -284,10 +321,12 @@ class DiceLoss(nn.Module):
         y_true = y_true.permute(0, 4, 1, 2, 3).contiguous()
         intersection = y_pred * y_true
         intersection = intersection.sum(dim=[2, 3, 4])
-        union = torch.pow(y_pred, 2).sum(dim=[2, 3, 4]) + torch.pow(y_true, 2).sum(dim=[2, 3, 4])
-        dsc = (2.*intersection) / (union + 1e-5)
-        dsc = (1-torch.mean(dsc))
+        union = torch.pow(y_pred, 2).sum(dim=[2, 3, 4]) + torch.pow(
+            y_true, 2).sum(dim=[2, 3, 4])
+        dsc = (2. * intersection) / (union + 1e-5)
+        dsc = (1 - torch.mean(dsc))
         return dsc
+
 
 class NCC_vxm(torch.nn.Module):
     """
@@ -306,7 +345,9 @@ class NCC_vxm(torch.nn.Module):
         # get dimension of volume
         # assumes Ii, Ji are sized [batch_size, *vol_shape, nb_feats]
         ndims = len(list(Ii.size())) - 2
-        assert ndims in [1, 2, 3], "volumes should be 1 to 3 dimensions. found: %d" % ndims
+        assert ndims in [
+            1, 2, 3
+        ], "volumes should be 1 to 3 dimensions. found: %d" % ndims
 
         # set window size
         win = [9] * ndims if self.win is None else self.win
@@ -352,6 +393,7 @@ class NCC_vxm(torch.nn.Module):
 
         return -torch.mean(cc)
 
+
 class MIND_loss(torch.nn.Module):
     """
         Local (over window) normalized cross correlation loss.
@@ -362,7 +404,7 @@ class MIND_loss(torch.nn.Module):
         self.win = win
 
     def pdist_squared(self, x):
-        xx = (x ** 2).sum(dim=1).unsqueeze(2)
+        xx = (x**2).sum(dim=1).unsqueeze(2)
         yy = xx.permute(0, 2, 1)
         dist = xx + yy - 2.0 * torch.bmm(x.permute(0, 2, 1), x)
         dist[dist != dist] = 0
@@ -376,49 +418,59 @@ class MIND_loss(torch.nn.Module):
         kernel_size = radius * 2 + 1
 
         # define start and end locations for self-similarity pattern
-        six_neighbourhood = torch.Tensor([[0, 1, 1],
-                                          [1, 1, 0],
-                                          [1, 0, 1],
-                                          [1, 1, 2],
-                                          [2, 1, 1],
-                                          [1, 2, 1]]).long()
+        six_neighbourhood = torch.Tensor([[0, 1, 1], [1, 1, 0], [1, 0, 1],
+                                          [1, 1, 2], [2, 1, 1], [1, 2,
+                                                                 1]]).long()
 
         # squared distances
-        dist = self.pdist_squared(six_neighbourhood.t().unsqueeze(0)).squeeze(0)
+        dist = self.pdist_squared(
+            six_neighbourhood.t().unsqueeze(0)).squeeze(0)
 
         # define comparison mask
         x, y = torch.meshgrid(torch.arange(6), torch.arange(6))
         mask = ((x > y).view(-1) & (dist == 2).view(-1))
 
         # build kernel
-        idx_shift1 = six_neighbourhood.unsqueeze(1).repeat(1, 6, 1).view(-1, 3)[mask, :]
-        idx_shift2 = six_neighbourhood.unsqueeze(0).repeat(6, 1, 1).view(-1, 3)[mask, :]
+        idx_shift1 = six_neighbourhood.unsqueeze(1).repeat(1, 6,
+                                                           1).view(-1,
+                                                                   3)[mask, :]
+        idx_shift2 = six_neighbourhood.unsqueeze(0).repeat(6, 1,
+                                                           1).view(-1,
+                                                                   3)[mask, :]
         mshift1 = torch.zeros(12, 1, 3, 3, 3).cuda()
-        mshift1.view(-1)[torch.arange(12) * 27 + idx_shift1[:, 0] * 9 + idx_shift1[:, 1] * 3 + idx_shift1[:, 2]] = 1
+        mshift1.view(-1)[torch.arange(12) * 27 + idx_shift1[:, 0] * 9 +
+                         idx_shift1[:, 1] * 3 + idx_shift1[:, 2]] = 1
         mshift2 = torch.zeros(12, 1, 3, 3, 3).cuda()
-        mshift2.view(-1)[torch.arange(12) * 27 + idx_shift2[:, 0] * 9 + idx_shift2[:, 1] * 3 + idx_shift2[:, 2]] = 1
+        mshift2.view(-1)[torch.arange(12) * 27 + idx_shift2[:, 0] * 9 +
+                         idx_shift2[:, 1] * 3 + idx_shift2[:, 2]] = 1
         rpad1 = nn.ReplicationPad3d(dilation)
         rpad2 = nn.ReplicationPad3d(radius)
 
         # compute patch-ssd
         ssd = F.avg_pool3d(rpad2(
-            (F.conv3d(rpad1(img), mshift1, dilation=dilation) - F.conv3d(rpad1(img), mshift2, dilation=dilation)) ** 2),
-                           kernel_size, stride=1)
+            (F.conv3d(rpad1(img), mshift1, dilation=dilation) -
+             F.conv3d(rpad1(img), mshift2, dilation=dilation))**2),
+                           kernel_size,
+                           stride=1)
 
         # MIND equation
         mind = ssd - torch.min(ssd, 1, keepdim=True)[0]
         mind_var = torch.mean(mind, 1, keepdim=True)
-        mind_var = torch.clamp(mind_var, (mind_var.mean() * 0.001).item(), (mind_var.mean() * 1000).item())
+        mind_var = torch.clamp(mind_var, (mind_var.mean() * 0.001).item(),
+                               (mind_var.mean() * 1000).item())
         mind /= mind_var
         mind = torch.exp(-mind)
 
         # permute to have same ordering as C++ code
-        mind = mind[:, torch.Tensor([6, 8, 1, 11, 2, 10, 0, 7, 9, 4, 5, 3]).long(), :, :, :]
+        mind = mind[:,
+                    torch.Tensor([6, 8, 1, 11, 2, 10, 0, 7, 9, 4, 5, 3]).long(
+                    ), :, :, :]
 
         return mind
 
     def forward(self, y_pred, y_true):
-        return torch.mean((self.MINDSSC(y_pred) - self.MINDSSC(y_true)) ** 2)
+        return torch.mean((self.MINDSSC(y_pred) - self.MINDSSC(y_true))**2)
+
 
 class MutualInformation(torch.nn.Module):
     """
@@ -427,17 +479,16 @@ class MutualInformation(torch.nn.Module):
 
     def __init__(self, sigma_ratio=1, minval=0., maxval=1., num_bin=32):
         super(MutualInformation, self).__init__()
-
         """Create bin centers"""
         bin_centers = np.linspace(minval, maxval, num=num_bin)
-        vol_bin_centers = Variable(torch.linspace(minval, maxval, num_bin), requires_grad=False).cuda()
+        vol_bin_centers = Variable(torch.linspace(minval, maxval, num_bin),
+                                   requires_grad=False).cuda()
         num_bins = len(bin_centers)
-
         """Sigma for Gaussian approx."""
         sigma = np.mean(np.diff(bin_centers)) * sigma_ratio
         print(sigma)
 
-        self.preterm = 1 / (2 * sigma ** 2)
+        self.preterm = 1 / (2 * sigma**2)
         self.bin_centers = bin_centers
         self.max_clip = maxval
         self.num_bins = num_bins
@@ -453,16 +504,14 @@ class MutualInformation(torch.nn.Module):
         y_pred = torch.unsqueeze(y_pred, 2)
 
         nb_voxels = y_pred.shape[1]  # total num of voxels
-
         """Reshape bin centers"""
         o = [1, 1, np.prod(self.vol_bin_centers.shape)]
         vbc = torch.reshape(self.vol_bin_centers, o).cuda()
-
         """compute image terms by approx. Gaussian dist."""
-        I_a = torch.exp(- self.preterm * torch.square(y_true - vbc))
+        I_a = torch.exp(-self.preterm * torch.square(y_true - vbc))
         I_a = I_a / torch.sum(I_a, dim=-1, keepdim=True)
 
-        I_b = torch.exp(- self.preterm * torch.square(y_pred - vbc))
+        I_b = torch.exp(-self.preterm * torch.square(y_pred - vbc))
         I_b = I_b / torch.sum(I_b, dim=-1, keepdim=True)
 
         # compute probabilities
@@ -472,29 +521,35 @@ class MutualInformation(torch.nn.Module):
         pb = torch.mean(I_b, dim=1, keepdim=True)
 
         papb = torch.bmm(pa.permute(0, 2, 1), pb) + 1e-6
-        mi = torch.sum(torch.sum(pab * torch.log(pab / papb + 1e-6), dim=1), dim=1)
+        mi = torch.sum(torch.sum(pab * torch.log(pab / papb + 1e-6), dim=1),
+                       dim=1)
         return mi.mean()  # average across batch
 
     def forward(self, y_true, y_pred):
         return -self.mi(y_true, y_pred)
+
 
 class localMutualInformation(torch.nn.Module):
     """
     Local Mutual Information for non-overlapping patches
     """
 
-    def __init__(self, sigma_ratio=1, minval=0., maxval=1., num_bin=32, patch_size=5):
+    def __init__(self,
+                 sigma_ratio=1,
+                 minval=0.,
+                 maxval=1.,
+                 num_bin=32,
+                 patch_size=5):
         super(localMutualInformation, self).__init__()
-
         """Create bin centers"""
         bin_centers = np.linspace(minval, maxval, num=num_bin)
-        vol_bin_centers = Variable(torch.linspace(minval, maxval, num_bin), requires_grad=False).cuda()
+        vol_bin_centers = Variable(torch.linspace(minval, maxval, num_bin),
+                                   requires_grad=False).cuda()
         num_bins = len(bin_centers)
-
         """Sigma for Gaussian approx."""
         sigma = np.mean(np.diff(bin_centers)) * sigma_ratio
 
-        self.preterm = 1 / (2 * sigma ** 2)
+        self.preterm = 1 / (2 * sigma**2)
         self.bin_centers = bin_centers
         self.max_clip = maxval
         self.num_bins = num_bins
@@ -504,11 +559,9 @@ class localMutualInformation(torch.nn.Module):
     def local_mi(self, y_true, y_pred):
         y_pred = torch.clamp(y_pred, 0., self.max_clip)
         y_true = torch.clamp(y_true, 0, self.max_clip)
-
         """Reshape bin centers"""
         o = [1, 1, np.prod(self.vol_bin_centers.shape)]
         vbc = torch.reshape(self.vol_bin_centers, o).cuda()
-
         """Making image paddings"""
         if len(list(y_pred.size())[2:]) == 3:
             ndim = 3
@@ -517,61 +570,71 @@ class localMutualInformation(torch.nn.Module):
             x_r = -x % self.patch_size
             y_r = -y % self.patch_size
             z_r = -z % self.patch_size
-            padding = (z_r // 2, z_r - z_r // 2, y_r // 2, y_r - y_r // 2, x_r // 2, x_r - x_r // 2, 0, 0, 0, 0)
+            padding = (z_r // 2, z_r - z_r // 2, y_r // 2, y_r - y_r // 2,
+                       x_r // 2, x_r - x_r // 2, 0, 0, 0, 0)
         elif len(list(y_pred.size())[2:]) == 2:
             ndim = 2
             x, y = list(y_pred.size())[2:]
             # compute padding sizes
             x_r = -x % self.patch_size
             y_r = -y % self.patch_size
-            padding = (y_r // 2, y_r - y_r // 2, x_r // 2, x_r - x_r // 2, 0, 0, 0, 0)
+            padding = (y_r // 2, y_r - y_r // 2, x_r // 2, x_r - x_r // 2, 0,
+                       0, 0, 0)
         else:
-            raise Exception('Supports 2D and 3D but not {}'.format(list(y_pred.size())))
+            raise Exception('Supports 2D and 3D but not {}'.format(
+                list(y_pred.size())))
         y_true = F.pad(y_true, padding, "constant", 0)
         y_pred = F.pad(y_pred, padding, "constant", 0)
-
         """Reshaping images into non-overlapping patches"""
         if ndim == 3:
-            y_true_patch = torch.reshape(y_true, (y_true.shape[0], y_true.shape[1],
-                                                  (x + x_r) // self.patch_size, self.patch_size,
-                                                  (y + y_r) // self.patch_size, self.patch_size,
-                                                  (z + z_r) // self.patch_size, self.patch_size))
+            y_true_patch = torch.reshape(
+                y_true, (y_true.shape[0], y_true.shape[1],
+                         (x + x_r) // self.patch_size, self.patch_size,
+                         (y + y_r) // self.patch_size, self.patch_size,
+                         (z + z_r) // self.patch_size, self.patch_size))
             y_true_patch = y_true_patch.permute(0, 1, 2, 4, 6, 3, 5, 7)
-            y_true_patch = torch.reshape(y_true_patch, (-1, self.patch_size ** 3, 1))
+            y_true_patch = torch.reshape(y_true_patch,
+                                         (-1, self.patch_size**3, 1))
 
-            y_pred_patch = torch.reshape(y_pred, (y_pred.shape[0], y_pred.shape[1],
-                                                  (x + x_r) // self.patch_size, self.patch_size,
-                                                  (y + y_r) // self.patch_size, self.patch_size,
-                                                  (z + z_r) // self.patch_size, self.patch_size))
+            y_pred_patch = torch.reshape(
+                y_pred, (y_pred.shape[0], y_pred.shape[1],
+                         (x + x_r) // self.patch_size, self.patch_size,
+                         (y + y_r) // self.patch_size, self.patch_size,
+                         (z + z_r) // self.patch_size, self.patch_size))
             y_pred_patch = y_pred_patch.permute(0, 1, 2, 4, 6, 3, 5, 7)
-            y_pred_patch = torch.reshape(y_pred_patch, (-1, self.patch_size ** 3, 1))
+            y_pred_patch = torch.reshape(y_pred_patch,
+                                         (-1, self.patch_size**3, 1))
         else:
-            y_true_patch = torch.reshape(y_true, (y_true.shape[0], y_true.shape[1],
-                                                  (x + x_r) // self.patch_size, self.patch_size,
-                                                  (y + y_r) // self.patch_size, self.patch_size))
+            y_true_patch = torch.reshape(
+                y_true, (y_true.shape[0], y_true.shape[1],
+                         (x + x_r) // self.patch_size, self.patch_size,
+                         (y + y_r) // self.patch_size, self.patch_size))
             y_true_patch = y_true_patch.permute(0, 1, 2, 4, 3, 5)
-            y_true_patch = torch.reshape(y_true_patch, (-1, self.patch_size ** 2, 1))
+            y_true_patch = torch.reshape(y_true_patch,
+                                         (-1, self.patch_size**2, 1))
 
-            y_pred_patch = torch.reshape(y_pred, (y_pred.shape[0], y_pred.shape[1],
-                                                  (x + x_r) // self.patch_size, self.patch_size,
-                                                  (y + y_r) // self.patch_size, self.patch_size))
+            y_pred_patch = torch.reshape(
+                y_pred, (y_pred.shape[0], y_pred.shape[1],
+                         (x + x_r) // self.patch_size, self.patch_size,
+                         (y + y_r) // self.patch_size, self.patch_size))
             y_pred_patch = y_pred_patch.permute(0, 1, 2, 4, 3, 5)
-            y_pred_patch = torch.reshape(y_pred_patch, (-1, self.patch_size ** 2, 1))
-
+            y_pred_patch = torch.reshape(y_pred_patch,
+                                         (-1, self.patch_size**2, 1))
         """Compute MI"""
-        I_a_patch = torch.exp(- self.preterm * torch.square(y_true_patch - vbc))
+        I_a_patch = torch.exp(-self.preterm * torch.square(y_true_patch - vbc))
         I_a_patch = I_a_patch / torch.sum(I_a_patch, dim=-1, keepdim=True)
 
-        I_b_patch = torch.exp(- self.preterm * torch.square(y_pred_patch - vbc))
+        I_b_patch = torch.exp(-self.preterm * torch.square(y_pred_patch - vbc))
         I_b_patch = I_b_patch / torch.sum(I_b_patch, dim=-1, keepdim=True)
 
         pab = torch.bmm(I_a_patch.permute(0, 2, 1), I_b_patch)
-        pab = pab / self.patch_size ** ndim
+        pab = pab / self.patch_size**ndim
         pa = torch.mean(I_a_patch, dim=1, keepdim=True)
         pb = torch.mean(I_b_patch, dim=1, keepdim=True)
 
         papb = torch.bmm(pa.permute(0, 2, 1), pb) + 1e-6
-        mi = torch.sum(torch.sum(pab * torch.log(pab / papb + 1e-6), dim=1), dim=1)
+        mi = torch.sum(torch.sum(pab * torch.log(pab / papb + 1e-6), dim=1),
+                       dim=1)
         return mi.mean()
 
     def forward(self, y_true, y_pred):

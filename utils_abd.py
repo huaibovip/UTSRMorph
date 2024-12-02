@@ -6,12 +6,15 @@ from torch import nn
 import pystrum.pynd.ndutils as nd
 from scipy.ndimage import gaussian_filter
 
+
 def pkload(fname):
     with open(fname, 'rb') as f:
         return pickle.load(f)
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -31,12 +34,15 @@ class AverageMeter(object):
         self.vals.append(val)
         self.std = np.std(self.vals)
 
+
 def pad_image(img, target_size):
     rows_to_pad = max(target_size[0] - img.shape[2], 0)
     cols_to_pad = max(target_size[1] - img.shape[3], 0)
     slcs_to_pad = max(target_size[2] - img.shape[4], 0)
-    padded_img = F.pad(img, (0, slcs_to_pad, 0, cols_to_pad, 0, rows_to_pad), "constant", 0)
+    padded_img = F.pad(img, (0, slcs_to_pad, 0, cols_to_pad, 0, rows_to_pad),
+                       "constant", 0)
     return padded_img
+
 
 class SpatialTransformer(nn.Module):
     """
@@ -69,7 +75,8 @@ class SpatialTransformer(nn.Module):
 
         # need to normalize grid values to [-1, 1] for resampler
         for i in range(len(shape)):
-            new_locs[:, i, ...] = 2 * (new_locs[:, i, ...] / (shape[i] - 1) - 0.5)
+            new_locs[:, i,
+                     ...] = 2 * (new_locs[:, i, ...] / (shape[i] - 1) - 0.5)
 
         # move channels dim to last position
         # also not sure why, but the channels need to be reversed
@@ -82,7 +89,9 @@ class SpatialTransformer(nn.Module):
 
         return F.grid_sample(src, new_locs, align_corners=True, mode=self.mode)
 
+
 class register_model(nn.Module):
+
     def __init__(self, img_size=(64, 256, 256), mode='bilinear'):
         super(register_model, self).__init__()
         self.spatial_trans = SpatialTransformer(img_size, mode)
@@ -92,6 +101,7 @@ class register_model(nn.Module):
         flow = x[1].cuda()
         out = self.spatial_trans(img, flow)
         return out
+
 
 def dice_val(y_pred, y_true, num_clus):
     y_pred = nn.functional.one_hot(y_pred, num_classes=num_clus)
@@ -103,8 +113,9 @@ def dice_val(y_pred, y_true, num_clus):
     intersection = y_pred * y_true
     intersection = intersection.sum(dim=[2, 3, 4])
     union = y_pred.sum(dim=[2, 3, 4]) + y_true.sum(dim=[2, 3, 4])
-    dsc = (2.*intersection) / (union + 1e-5)
+    dsc = (2. * intersection) / (union + 1e-5)
     return torch.mean(torch.mean(dsc, dim=1))
+
 
 def dice_val_VOI(y_pred, y_true):
     VOI_lbls = [1, 2, 3, 4]
@@ -118,10 +129,11 @@ def dice_val_VOI(y_pred, y_true):
         intersection = pred_i * true_i
         intersection = np.sum(intersection)
         union = np.sum(pred_i) + np.sum(true_i)
-        dsc = (2.*intersection) / (union + 1e-5)
-        DSCs[idx] =dsc
+        dsc = (2. * intersection) / (union + 1e-5)
+        DSCs[idx] = dsc
         idx += 1
     return np.mean(DSCs)
+
 
 def jacobian_determinant_vxm(disp):
     """
@@ -154,9 +166,12 @@ def jacobian_determinant_vxm(disp):
         dz = J[2]
 
         # compute jacobian components
-        Jdet0 = dx[..., 0] * (dy[..., 1] * dz[..., 2] - dy[..., 2] * dz[..., 1])
-        Jdet1 = dx[..., 1] * (dy[..., 0] * dz[..., 2] - dy[..., 2] * dz[..., 0])
-        Jdet2 = dx[..., 2] * (dy[..., 0] * dz[..., 1] - dy[..., 1] * dz[..., 0])
+        Jdet0 = dx[...,
+                   0] * (dy[..., 1] * dz[..., 2] - dy[..., 2] * dz[..., 1])
+        Jdet1 = dx[...,
+                   1] * (dy[..., 0] * dz[..., 2] - dy[..., 2] * dz[..., 0])
+        Jdet2 = dx[...,
+                   2] * (dy[..., 0] * dz[..., 1] - dy[..., 1] * dz[..., 0])
 
         return Jdet0 - Jdet1 + Jdet2
 
@@ -167,13 +182,17 @@ def jacobian_determinant_vxm(disp):
 
         return dfdx[..., 0] * dfdy[..., 1] - dfdy[..., 0] * dfdx[..., 1]
 
+
 import re
+
+
 def process_label():
     #process labeling information for FreeSurfer
-    seg_table = [0, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 24, 26,
-                          28, 30, 31, 41, 42, 43, 44, 46, 47, 49, 50, 51, 52, 53, 54, 58, 60, 62,
-                          63, 72, 77, 80, 85, 251, 252, 253, 254, 255]
-
+    seg_table = [
+        0, 2, 3, 4, 5, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 24, 26, 28,
+        30, 31, 41, 42, 43, 44, 46, 47, 49, 50, 51, 52, 53, 54, 58, 60, 62, 63,
+        72, 77, 80, 85, 251, 252, 253, 254, 255
+    ]
 
     file1 = open('label_info.txt', 'r')
     Lines = file1.readlines()
@@ -182,7 +201,7 @@ def process_label():
     seg_look_up = []
     for seg_label in seg_table:
         for line in Lines:
-            line = re.sub(' +', ' ',line).split(' ')
+            line = re.sub(' +', ' ', line).split(' ')
             try:
                 int(line[0])
             except:
@@ -193,10 +212,12 @@ def process_label():
         seg_i += 1
     return dict
 
+
 def write2csv(line, name):
-    with open(name+'.csv', 'a') as file:
+    with open(name + '.csv', 'a') as file:
         file.write(line)
         file.write('\n')
+
 
 def dice_val_substruct(y_pred, y_true, std_idx):
     with torch.no_grad():
@@ -216,21 +237,27 @@ def dice_val_substruct(y_pred, y_true, std_idx):
         intersection = pred_clus * true_clus
         intersection = intersection.sum()
         union = pred_clus.sum() + true_clus.sum()
-        dsc = (2.*intersection) / (union + 1e-5)
-        line = line+','+str(dsc)
+        dsc = (2. * intersection) / (union + 1e-5)
+        line = line + ',' + str(dsc)
     return line
 
-def dice(y_pred, y_true, ):
+
+def dice(
+    y_pred,
+    y_true,
+):
     intersection = y_pred * y_true
     intersection = np.sum(intersection)
     union = np.sum(y_pred) + np.sum(y_true)
-    dsc = (2.*intersection) / (union + 1e-5)
+    dsc = (2. * intersection) / (union + 1e-5)
     return dsc
+
 
 def smooth_seg(binary_img, sigma=1.5, thresh=0.4):
     binary_img = gaussian_filter(binary_img.astype(np.float32()), sigma=sigma)
     binary_img = binary_img > thresh
     return binary_img
+
 
 def get_mc_preds(net, inputs, mc_iter: int = 25):
     """Convenience fn. for MC integration for uncertainty estimation.
@@ -250,6 +277,7 @@ def get_mc_preds(net, inputs, mc_iter: int = 25):
             flow_list.append(flow)
     return img_list, flow_list
 
+
 def calc_uncert(tar, img_list):
     sqr_diffs = []
     for i in range(len(img_list)):
@@ -258,6 +286,7 @@ def calc_uncert(tar, img_list):
     uncert = torch.mean(torch.cat(sqr_diffs, dim=0)[:], dim=0, keepdim=True)
     return uncert
 
+
 def calc_error(tar, img_list):
     sqr_diffs = []
     for i in range(len(img_list)):
@@ -265,6 +294,7 @@ def calc_error(tar, img_list):
         sqr_diffs.append(sqr_diff)
     uncert = torch.mean(torch.cat(sqr_diffs, dim=0)[:], dim=0, keepdim=True)
     return uncert
+
 
 def get_mc_preds_w_errors(net, inputs, target, mc_iter: int = 25):
     """Convenience fn. for MC integration for uncertainty estimation.
@@ -287,6 +317,7 @@ def get_mc_preds_w_errors(net, inputs, target, mc_iter: int = 25):
             err.append(MSE(img, target).item())
     return img_list, flow_list, err
 
+
 def get_diff_mc_preds(net, inputs, mc_iter: int = 25):
     """Convenience fn. for MC integration for uncertainty estimation.
     Args:
@@ -307,11 +338,12 @@ def get_diff_mc_preds(net, inputs, mc_iter: int = 25):
             disp_list.append(disp)
     return img_list, flow_list, disp_list
 
-def uncert_regression_gal(img_list, reduction = 'mean'):
+
+def uncert_regression_gal(img_list, reduction='mean'):
     img_list = torch.cat(img_list, dim=0)
-    mean = img_list[:,:-1].mean(dim=0, keepdim=True)
-    ale = img_list[:,-1:].mean(dim=0, keepdim=True)
-    epi = torch.var(img_list[:,:-1], dim=0, keepdim=True)
+    mean = img_list[:, :-1].mean(dim=0, keepdim=True)
+    ale = img_list[:, -1:].mean(dim=0, keepdim=True)
+    epi = torch.var(img_list[:, :-1], dim=0, keepdim=True)
     #if epi.shape[1] == 3:
     epi = epi.mean(dim=1, keepdim=True)
     uncert = ale + epi
@@ -322,12 +354,19 @@ def uncert_regression_gal(img_list, reduction = 'mean'):
     else:
         return ale.detach(), epi.detach(), uncert.detach()
 
+
 def uceloss(errors, uncert, n_bins=15, outlier=0.0, range=None):
     device = errors.device
     if range == None:
-        bin_boundaries = torch.linspace(uncert.min().item(), uncert.max().item(), n_bins + 1, device=device)
+        bin_boundaries = torch.linspace(uncert.min().item(),
+                                        uncert.max().item(),
+                                        n_bins + 1,
+                                        device=device)
     else:
-        bin_boundaries = torch.linspace(range[0], range[1], n_bins + 1, device=device)
+        bin_boundaries = torch.linspace(range[0],
+                                        range[1],
+                                        n_bins + 1,
+                                        device=device)
     bin_lowers = bin_boundaries[:-1]
     bin_uppers = bin_boundaries[1:]
 

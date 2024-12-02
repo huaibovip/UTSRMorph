@@ -8,6 +8,7 @@ import numpy as np
 
 
 class OASISBrainDataset(Dataset):
+
     def __init__(self, data_path, transforms):
         self.paths = data_path
         self.transforms = transforms
@@ -15,7 +16,7 @@ class OASISBrainDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
@@ -33,9 +34,11 @@ class OASISBrainDataset(Dataset):
         y, y_seg = self.transforms([y, y_seg])
         x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
-        x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
+        x_seg = np.ascontiguousarray(
+            x_seg)  # [Bsize,channelsHeight,,Width,Depth]
         y_seg = np.ascontiguousarray(y_seg)
-        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
+        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(
+            y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
         return x, y, x_seg, y_seg
 
     def __len__(self):
@@ -43,6 +46,7 @@ class OASISBrainDataset(Dataset):
 
 
 class OASISBrainInferDataset(Dataset):
+
     def __init__(self, data_path, transforms):
         self.paths = data_path
         self.transforms = transforms
@@ -50,27 +54,31 @@ class OASISBrainInferDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
         path = self.paths[index]
         x, y, x_seg, y_seg = pkload(path)
         x, y = x[None, ...], y[None, ...]
-        x_seg, y_seg= x_seg[None, ...], y_seg[None, ...]
+        x_seg, y_seg = x_seg[None, ...], y_seg[None, ...]
         x, x_seg = self.transforms([x, x_seg])
         y, y_seg = self.transforms([y, y_seg])
-        x = np.ascontiguousarray(x)# [Bsize,channelsHeight,,Width,Depth]
+        x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
-        x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
+        x_seg = np.ascontiguousarray(
+            x_seg)  # [Bsize,channelsHeight,,Width,Depth]
         y_seg = np.ascontiguousarray(y_seg)
-        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
+        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(
+            y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
         return x, y, x_seg, y_seg
 
     def __len__(self):
         return len(self.paths)
 
+
 class IXIBrainDataset(Dataset):
+
     def __init__(self, data_path, atlas_path, transforms):
         self.paths = data_path
         self.atlas_path = atlas_path
@@ -79,7 +87,7 @@ class IXIBrainDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
@@ -93,11 +101,11 @@ class IXIBrainDataset(Dataset):
         # transforms work with nhwtc
         x, y = x[None, ...], y[None, ...]
         # print(x.shape, y.shape)#(1, 240, 240, 155) (1, 240, 240, 155)
-        x,y = self.transforms([x, y])
+        x, y = self.transforms([x, y])
         #y = self.one_hot(y, 2)
         #print(y.shape)
         #sys.exit(0)
-        x = np.ascontiguousarray(x)# [Bsize,channelsHeight,,Width,Depth]
+        x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
         #plt.figure()
         #plt.subplot(1, 2, 1)
@@ -115,6 +123,7 @@ class IXIBrainDataset(Dataset):
 
 
 class IXIBrainInferDataset(Dataset):
+
     def __init__(self, data_path, atlas_path, transforms):
         self.atlas_path = atlas_path
         self.paths = data_path
@@ -123,7 +132,7 @@ class IXIBrainInferDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
@@ -131,20 +140,24 @@ class IXIBrainInferDataset(Dataset):
         x, x_seg = pkload(self.atlas_path)
         y, y_seg = pkload(path)
         x, y = x[None, ...], y[None, ...]
-        x_seg, y_seg= x_seg[None, ...], y_seg[None, ...]
+        x_seg, y_seg = x_seg[None, ...], y_seg[None, ...]
         x, x_seg = self.transforms([x, x_seg])
         y, y_seg = self.transforms([y, y_seg])
-        x = np.ascontiguousarray(x)# [Bsize,channelsHeight,,Width,Depth]
+        x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
-        x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
+        x_seg = np.ascontiguousarray(
+            x_seg)  # [Bsize,channelsHeight,,Width,Depth]
         y_seg = np.ascontiguousarray(y_seg)
-        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
+        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(
+            y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
         return x, y, x_seg, y_seg
 
     def __len__(self):
         return len(self.paths)
 
+
 class CTMRIABDDataset(Dataset):
+
     def __init__(self, data_path, transforms):
         self.paths = data_path
         self.transforms = transforms
@@ -152,7 +165,7 @@ class CTMRIABDDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
@@ -165,7 +178,8 @@ class CTMRIABDDataset(Dataset):
         x_seg = np.load(path.replace("data", "mask"))
 
         y_data_file = os.path.dirname(path.replace("CT", "MRI"))
-        y_data_path = y_data_file + '/' + random.choice(os.listdir(y_data_file))
+        y_data_path = y_data_file + '/' + random.choice(
+            os.listdir(y_data_file))
         y = np.load(y_data_path)
         y_seg = np.load(y_data_path.replace("data", "mask"))
 
@@ -175,9 +189,11 @@ class CTMRIABDDataset(Dataset):
         y, y_seg = self.transforms([y, y_seg])
         x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
-        x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
+        x_seg = np.ascontiguousarray(
+            x_seg)  # [Bsize,channelsHeight,,Width,Depth]
         y_seg = np.ascontiguousarray(y_seg)
-        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
+        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(
+            y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
         return x, y, x_seg, y_seg
 
     def __len__(self):
@@ -185,6 +201,7 @@ class CTMRIABDDataset(Dataset):
 
 
 class CTMRIABDInferDataset(Dataset):
+
     def __init__(self, data_path, transforms):
         self.paths = data_path
         self.transforms = transforms
@@ -192,7 +209,7 @@ class CTMRIABDInferDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
@@ -207,20 +224,24 @@ class CTMRIABDInferDataset(Dataset):
         #x_seg = np.pad(x_seg, ((0, 0), (0, 0), (0, 2)), 'constant')
         #y_seg = np.pad(y_seg, ((0, 0), (0, 0), (0, 2)), 'constant')
         x, y = x[None, ...], y[None, ...]
-        x_seg, y_seg= x_seg[None, ...], y_seg[None, ...]
+        x_seg, y_seg = x_seg[None, ...], y_seg[None, ...]
         x, x_seg = self.transforms([x, x_seg])
         y, y_seg = self.transforms([y, y_seg])
-        x = np.ascontiguousarray(x)# [Bsize,channelsHeight,,Width,Depth]
+        x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
-        x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
+        x_seg = np.ascontiguousarray(
+            x_seg)  # [Bsize,channelsHeight,,Width,Depth]
         y_seg = np.ascontiguousarray(y_seg)
-        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
+        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(
+            y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
         return x, y, x_seg, y_seg
 
     def __len__(self):
         return len(self.paths)
 
+
 class CMFDataset(Dataset):
+
     def __init__(self, data_path, transforms):
         self.paths = data_path
         self.transforms = transforms
@@ -228,20 +249,20 @@ class CMFDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
         path = self.paths[index]
         x = np.load(path)
-        y = np.load(path.replace("CT","MRI"))
+        y = np.load(path.replace("CT", "MRI"))
         #y_data_file = os.path.dirname(path.replace("CT","MRI"))
         #y_data_path = y_data_file + '/' + random.choice(os.listdir(y_data_file))
         #y = np.load(y_data_path)
         x, y = x[None, ...], y[None, ...]
         x_seg, y_seg = x[None, ...], y[None, ...]
-        x,x_seg = self.transforms([x,x_seg])
-        y,y_seg = self.transforms([y,y_seg])
+        x, x_seg = self.transforms([x, x_seg])
+        y, y_seg = self.transforms([y, y_seg])
         x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
 
@@ -253,6 +274,7 @@ class CMFDataset(Dataset):
 
 
 class CMFInferDataset(Dataset):
+
     def __init__(self, data_path, transforms):
         self.paths = data_path
         self.transforms = transforms
@@ -260,25 +282,27 @@ class CMFInferDataset(Dataset):
     def one_hot(self, img, C):
         out = np.zeros((C, img.shape[1], img.shape[2], img.shape[3]))
         for i in range(C):
-            out[i,...] = img == i
+            out[i, ...] = img == i
         return out
 
     def __getitem__(self, index):
         path = self.paths[index]
         x = np.load(path)
-        y = np.load(path.replace("CT","MRI"))
-        x_seg = np.load(path.replace("data","mask"))
-        y_seg = np.load(path.replace("data", "mask").replace("CT","MRI"))
+        y = np.load(path.replace("CT", "MRI"))
+        x_seg = np.load(path.replace("data", "mask"))
+        y_seg = np.load(path.replace("data", "mask").replace("CT", "MRI"))
 
         x, y = x[None, ...], y[None, ...]
-        x_seg, y_seg= x_seg[None, ...], y_seg[None, ...]
+        x_seg, y_seg = x_seg[None, ...], y_seg[None, ...]
         x, x_seg = self.transforms([x, x_seg])
         y, y_seg = self.transforms([y, y_seg])
-        x = np.ascontiguousarray(x)# [Bsize,channelsHeight,,Width,Depth]
+        x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
         y = np.ascontiguousarray(y)
-        x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
+        x_seg = np.ascontiguousarray(
+            x_seg)  # [Bsize,channelsHeight,,Width,Depth]
         y_seg = np.ascontiguousarray(y_seg)
-        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
+        x, y, x_seg, y_seg = torch.from_numpy(x), torch.from_numpy(
+            y), torch.from_numpy(x_seg), torch.from_numpy(y_seg)
         return x, y, x_seg, y_seg
 
     def __len__(self):

@@ -125,3 +125,5 @@ checkpoints/
 
 experiments/
 logs/
+experiments
+logs

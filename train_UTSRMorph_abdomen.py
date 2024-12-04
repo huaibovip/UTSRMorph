@@ -109,7 +109,7 @@ def main():
     If continue from previous training
     '''
     if cont_training:
-        epoch_start = 201
+        epoch_start = 180
         model_dir = 'experiments/' + save_dir
         updated_lr = round(lr * np.power(1 - (epoch_start) / max_epoch, 0.9),
                            8)
@@ -146,7 +146,7 @@ def main():
                            lr=updated_lr,
                            weight_decay=0,
                            amsgrad=True)
-    criterion_ncc = losses.MIND_loss()
+    criterion_ncc = losses.MutualInformation()
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
     writer = SummaryWriter(log_dir='logs/' + save_dir)

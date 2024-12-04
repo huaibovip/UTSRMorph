@@ -173,10 +173,6 @@ class CTMRIABDDataset(Dataset):
 
     def __getitem__(self, index):
         path = self.paths[index]
-        tar_list = self.paths.copy()
-        tar_list.remove(path)
-        random.shuffle(tar_list)
-        tar_file = tar_list[0]
         x = np.load(path)
         x_seg = np.load(path.replace("data", "mask"))
 

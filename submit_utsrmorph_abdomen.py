@@ -17,6 +17,20 @@ import utils_abd
 from data import datasets, trans
 from models_abdomen.UTSRMorph import CONFIGS as CONFIGS_TM
 from surface_distance import *
+import pickle
+
+
+def pksave(file_name, target_seg, pred_seg, flow):
+    if not os.path.exists('results'):
+        os.makedirs('results')
+
+    datas = {
+        'target_seg': target_seg,
+        'pred_seg': pred_seg,
+        'pred_flow': flow,
+    }
+    with open('results/subject_' + file_name, 'wb') as f:
+        pickle.dump(datas, f)
 
 
 def dice_val_VOI(y_pred, y_true):
@@ -111,8 +125,7 @@ def main():
     weights = [1, 1, 1]
     # model_folder = 'UTSRMorph_mi{}_dsc{}_diffusion{}/'.format(
     #     weights[0], weights[1], weights[2])
-    model_folder = 'UTSRMorph_mi{}_diffusion{}/'.format(
-        weights[0], weights[2])
+    model_folder = 'UTSRMorph_mi{}_diffusion{}/'.format(weights[0], weights[2])
     model_dir = 'experiments/' + model_folder
     config = CONFIGS_TM['UTSRMorph']
     model = UTSRMorph.UTSRMorph(config)
@@ -219,9 +232,9 @@ def main():
             x_def, flow = model(x_in)
 
             x_seg_oh = nn.functional.one_hot(x_seg.long(), num_classes=5)
-            x_seg_oh = torch.squeeze(x_seg_oh, 1)
-            x_seg_oh = x_seg_oh.permute(0, 4, 1, 2, 3).contiguous()
-            # x_segs = model.spatial_trans(x_seg.float(), flow.float())
+            x_seg_oh = x_seg_oh.squeeze(1).permute(0, 4, 1, 2, 3).contiguous()
+            # x_segs = model.spatial_trans(x_seg_oh.float(), flow.float())
+            # dicemean:0.6942510412589162dicestd:0.20176667342205112
             x_segs = []
             for i in range(5):
                 def_seg = reg_model(
@@ -229,7 +242,9 @@ def main():
                      flow.float()])
                 x_segs.append(def_seg)
             x_segs = torch.cat(x_segs, dim=1)
+            # dicemean:0.6950645906532701dicestd:0.20142164791209782
             def_out = torch.argmax(x_segs, dim=1, keepdim=True)
+            pksave(file_name, y_seg.cpu().numpy(), def_out.cpu().numpy(), flow.cpu().numpy())
             del x_segs, x_seg_oh
             # def_out = reg_model([x_seg.cuda().float(), flow.cuda()])
             tar = y.detach().cpu().numpy()[0, 0, :, :, :]

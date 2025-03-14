@@ -129,20 +129,11 @@ class DilateMorph(BaseModule):
             f4 = None
 
         out = self.transformer(source, target)
-        if self.if_transskip:
-            mov_f1, fix_f1 = out[-2]
-            mov_f2, fix_f2 = out[-3]
-            mov_f3, fix_f3 = out[-4]
-        else:
-            mov_f1, fix_f1 = None, None
-            mov_f2, fix_f2 = None, None
-            mov_f3, fix_f3 = None, None
 
         mov_f0, fix_f0 = out[-1]
-        # x = self.up0(mov_f0 + fix_f0, mov_f1, fix_f1)
-        x = self.up0(mov_f0, mov_f1, fix_f1)
-        x = self.up1(x, mov_f2, fix_f2)
-        x = self.up2(x, mov_f3, fix_f3)
+        x = self.up0(mov_f0, out[-2][0], out[-2][1])
+        x = self.up1(x, out[-3][0], out[-3][1])
+        x = self.up2(x, out[-4][0], out[-4][1])
         x = self.up3(x, f4)
         x = self.up(x)
         flow = self.flow(x)
@@ -260,19 +251,11 @@ class DilateMorph1(BaseModule):
             fix_f4 = None
 
         out = self.transformer(source, target)
-        if self.if_transskip:
-            mov_f1, fix_f1 = out[-2]
-            mov_f2, fix_f2 = out[-3]
-            mov_f3, fix_f3 = out[-4]
-        else:
-            mov_f1, fix_f1 = None, None
-            mov_f2, fix_f2 = None, None
-            mov_f3, fix_f3 = None, None
 
         x = out[-1][0] + out[-1][1]
-        x = self.up0(x, mov_f1, fix_f1)
-        x = self.up1(x, mov_f2, fix_f2)
-        x = self.up2(x, mov_f3, fix_f3)
+        x = self.up0(x, out[-2][0], out[-2][1])
+        x = self.up1(x, out[-3][0], out[-3][1])
+        x = self.up2(x, out[-4][0], out[-4][1])
         x = self.up3(x, mov_f4, fix_f4)
         x = self.up(x)
         flow = self.flow(x)

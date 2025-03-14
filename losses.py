@@ -486,7 +486,7 @@ class MutualInformation(torch.nn.Module):
         num_bins = len(bin_centers)
         """Sigma for Gaussian approx."""
         sigma = np.mean(np.diff(bin_centers)) * sigma_ratio
-        print(sigma)
+        print(f'MI sigma: {sigma}')
 
         self.preterm = 1 / (2 * sigma**2)
         self.bin_centers = bin_centers

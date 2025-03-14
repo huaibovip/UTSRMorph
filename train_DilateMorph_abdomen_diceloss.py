@@ -1,6 +1,8 @@
 import datetime
+import gc
 import glob
 import os
+import random
 import sys
 import time
 
@@ -9,6 +11,7 @@ import numpy as np
 import torch
 from natsort import natsorted
 from torch import optim
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
@@ -16,22 +19,21 @@ from torchvision import transforms
 import losses
 import utils_abd
 from data import datasets, trans
-from models_dilatemorph import DilateMorphBi
+from models_dilatemorph import DilateMorph, DilateMorphCoarseToFine
 
 
 def main():
     batch_size = 1
-    # train_dir = '/root/share/abdomen/train/CT/data/'
-    # val_dir = '/root/share/abdomen/test/CT/data/'
     train_dir = 'E:/abdomen/train/CT/data/'
     val_dir = 'E:/abdomen/test/CT/data/'
     weights = [1, 1, 0.05]  # loss weights
-    save_dir = 'DilateMorphBi_mi{}_diffusion{}/'.format(weights[0], weights[2])
-    if not os.path.exists('work_dirs/dilatemorphbi/experiments/' + save_dir):
-        os.makedirs('work_dirs/dilatemorphbi/experiments/' + save_dir)
-    if not os.path.exists('work_dirs/dilatemorphbi/logs/' + save_dir):
-        os.makedirs('work_dirs/dilatemorphbi/logs/' + save_dir)
-    sys.stdout = Logger('work_dirs/dilatemorphbi/logs/' + save_dir)
+    save_dir = 'DilateMorph_mi{}_dsc{}_diffusion{}/'.format(
+        weights[0], weights[1], weights[2])
+    if not os.path.exists('work_dirs/dilatemorph/experiments/' + save_dir):
+        os.makedirs('work_dirs/dilatemorph/experiments/' + save_dir)
+    if not os.path.exists('work_dirs/dilatemorph/logs/' + save_dir):
+        os.makedirs('work_dirs/dilatemorph/logs/' + save_dir)
+    sys.stdout = Logger('work_dirs/dilatemorph/logs/' + save_dir)
     lr = 0.0004  # learning rate
     epoch_start = 0
     max_epoch = 500  #max traning epoch
@@ -40,11 +42,12 @@ def main():
     Initialize model
     '''
     img_size = (192, 160, 192)
-    model = DilateMorphBi(
+    model = DilateMorph(
         img_size=img_size,
         dilation=[2],
         num_heads=(2, 4, 8, 8),
-        use_checkpoint=True)
+        use_checkpoint=True,
+    )
     model.cuda()
     '''
     Initialize spatial transformation function
@@ -56,7 +59,7 @@ def main():
     '''
     if cont_training:
         epoch_start = 180
-        model_dir = 'work_dirs/dilatemorphbi/experiments/' + save_dir
+        model_dir = 'work_dirs/dilatemorph/experiments/' + save_dir
         updated_lr = round(lr * np.power(1 - (epoch_start) / max_epoch, 0.9),
                            8)
         best_model = torch.load(
@@ -92,10 +95,11 @@ def main():
                            lr=updated_lr,
                            weight_decay=0,
                            amsgrad=True)
-    criterion_ncc = losses.MutualInformation()
+    criterion_sim = losses.MutualInformation()
+    criterion_dsc = losses.DiceLoss(num_class=5)
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
-    writer = SummaryWriter(log_dir='work_dirs/dilatemorphbi/logs/' + save_dir)
+    writer = SummaryWriter(log_dir='work_dirs/dilatemorph/logs/' + save_dir)
     for epoch in range(epoch_start, max_epoch):
         print('Training Starts')
         '''
@@ -112,32 +116,70 @@ def main():
                 data = [t.cuda() for t in data]
                 x = data[0]
                 y = data[1]
+                x_seg = data[2]
+                y_seg = data[3]
 
-                if True:
-                    warped_mov, warped_fix, mov_flow, fix_flow = model(
-                        x, y, training=True)
-                    loss_ncc = 0.5 * (
-                        criterion_ncc(warped_mov, y) +
-                        criterion_ncc(warped_fix, x)) * weights[0]
-                    loss_reg = 0.5 * (
-                        criterion_reg(mov_flow, None) +
-                        criterion_reg(fix_flow, None)) * weights[2]
-                    del warped_mov, warped_fix, mov_flow, fix_flow
-                    loss = loss_ncc + loss_reg
+                if (random.random() > 0.5):
+                    x_seg_oh = F.one_hot(x_seg.long(), num_classes=5)
+                    x_seg_oh = torch.squeeze(x_seg_oh, 1)
+                    x_seg_oh = x_seg_oh.permute(0, 4, 1, 2, 3).contiguous()
+
+                    output, flow = model(x, y)
+                    def_segs = []
+                    for i in range(5):
+                        def_seg = model.warp(x_seg_oh[:, i:i + 1, ...].float(),
+                                             flow=flow.float())
+                        def_segs.append(def_seg)
+                    def_seg = torch.cat(def_segs, dim=1)
+                    loss_ncc = criterion_sim(output, y) * weights[0]
+                    loss_reg = criterion_reg(flow, y) * weights[2]
+                    del def_segs, output, flow, x_seg_oh,
+                    loss_dsc = criterion_dsc(def_seg,
+                                             y_seg.long()) * weights[1]
+
+                    loss = loss_ncc + loss_reg + loss_dsc
                     loss_all.update(loss.item(), y.numel())
                     # compute gradient and do SGD step
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
+                    del def_seg
+                else:
+                    y_seg_oh = F.one_hot(y_seg.long(), num_classes=5)
+                    y_seg_oh = torch.squeeze(y_seg_oh, 1)
+                    y_seg_oh = y_seg_oh.permute(0, 4, 1, 2, 3).contiguous()
+
+                    output, flow = model(y, x)
+                    def_segs = []
+                    for i in range(5):
+                        def_seg = model.warp(y_seg_oh[:, i:i + 1, ...].float(),
+                                             flow=flow.float())
+                        def_segs.append(def_seg)
+                    def_seg = torch.cat(def_segs, dim=1)
+                    loss_ncc = criterion_sim(output, x) * weights[0]
+                    loss_reg = criterion_reg(flow, x) * weights[2]
+                    del def_segs, output, flow, y_seg_oh,
+                    loss_dsc = criterion_dsc(def_seg,
+                                             x_seg.long()) * weights[1]
+                    loss = loss_ncc + loss_reg + loss_dsc
+                    loss_all.update(loss.item(), x.numel())
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                    del def_seg
+
                 print(
-                    'Iter {} of {} loss {:.4f}, Img Sim: {:.6f}, Reg: {:.6f}'.
-                    format(idx,
-                           len(train_loader) * 8, loss.item(), loss_ncc.item(),
-                           loss_reg.item()))
-                del loss, loss_ncc, loss_reg
+                    'Iter {} of {} loss {:.4f}, Img Sim: {:.6f}, Dsc: {:.6f}, Reg: {:.6f}'
+                    .format(idx,
+                            len(train_loader) * 8, loss.item(),
+                            loss_ncc.item(), loss_dsc.item(), loss_reg.item()))
+                del loss, loss_dsc, loss_ncc, loss_reg
 
         writer.add_scalar('Loss/train', loss_all.avg, epoch)
         print('Epoch {} loss {:.4f}'.format(epoch, loss_all.avg))
+        torch.cuda.empty_cache()
+        gc.collect()
         '''
         Validation
         '''
@@ -150,7 +192,6 @@ def main():
                 y = data[1]
                 x_seg = data[2]
                 y_seg = data[3]
-                # x_in = torch.cat((x, y), dim=1)
                 grid_img = mk_grid_img(8, 1, img_size)
                 output = model(x, y)
                 def_out = reg_model([x_seg.cuda().float(), output[1].cuda()],
@@ -168,7 +209,7 @@ def main():
                 'best_dsc': best_dsc,
                 'optimizer': optimizer.state_dict(),
             },
-            save_dir='work_dirs/dilatemorphbi/experiments/' + save_dir,
+            save_dir='work_dirs/dilatemorph/experiments/' + save_dir,
             filename='dsc{:.4f}_epoch{:03d}.pth.tar'.format(
                 eval_dsc.avg, epoch))
         time_end = time.time()

@@ -1,6 +1,7 @@
 import datetime
 import glob
 import os
+import random
 import sys
 import time
 
@@ -21,9 +22,11 @@ from models_dilatemorph import DilateMorph
 
 def main():
     batch_size = 1
-    train_dir = '/root/share/abdomen/train/CT/data/'
-    val_dir = '/root/share/abdomen/test/CT/data/'
-    weights = [1, 1, 0.05]  # loss weights
+    # train_dir = '/root/share/abdomen/train/CT/data/'
+    # val_dir = '/root/share/abdomen/test/CT/data/'
+    train_dir = 'E:/abdomen/train/CT/data/'
+    val_dir = 'E:/abdomen/test/CT/data/'
+    weights = [1, 1, 0.03]  # loss weights
     save_dir = 'DilateMorph_mi{}_diffusion{}/'.format(weights[0], weights[2])
     if not os.path.exists('work_dirs/dilatemorph/experiments/' + save_dir):
         os.makedirs('work_dirs/dilatemorph/experiments/' + save_dir)
@@ -38,19 +41,16 @@ def main():
     Initialize model
     '''
     img_size = (192, 160, 192)
-    model = DilateMorph(
-        img_size=img_size,
-        # dilation=(2, 3),
-        # num_heads=(2, 4, 8, 16),
-        use_checkpoint=True)
+    model = DilateMorph(img_size=img_size,
+                        dilation=[2],
+                        num_heads=(2, 4, 8, 8),
+                        use_checkpoint=True)
     model.cuda()
     '''
     Initialize spatial transformation function
     '''
-    reg_model = utils_abd.register_model(img_size, 'nearest')
+    reg_model = utils_abd.Warp(img_size)
     reg_model.cuda()
-    reg_model_bilin = utils_abd.register_model(img_size, 'bilinear')
-    reg_model_bilin.cuda()
     '''
     If continue from previous training
     '''
@@ -92,7 +92,7 @@ def main():
                            lr=updated_lr,
                            weight_decay=0,
                            amsgrad=True)
-    criterion_ncc = losses.MutualInformation()
+    criterion_sim = losses.MutualInformation()
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
     writer = SummaryWriter(log_dir='work_dirs/dilatemorph/logs/' + save_dir)
@@ -113,10 +113,9 @@ def main():
                 x = data[0]
                 y = data[1]
 
-                if True:
-                    # if (random.random() > 0.5):
+                if (random.random() > 0.5):
                     output, flow = model(x, y)
-                    loss_ncc = criterion_ncc(output, y) * weights[0]
+                    loss_ncc = criterion_sim(output, y) * weights[0]
                     loss_reg = criterion_reg(flow, y) * weights[2]
                     del output, flow
 
@@ -126,17 +125,17 @@ def main():
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                # else:
-                #     output, flow = model(y, x)
-                #     loss_ncc = criterion_ncc(output, x) * weights[0]
-                #     loss_reg = criterion_reg(flow, x) * weights[2]
-                #     del output, flow
-                #     loss = loss_ncc + loss_reg
-                #     loss_all.update(loss.item(), x.numel())
-                #     # compute gradient and do SGD step
-                #     optimizer.zero_grad()
-                #     loss.backward()
-                #     optimizer.step()
+                else:
+                    output, flow = model(y, x)
+                    loss_ncc = criterion_sim(output, x) * weights[0]
+                    loss_reg = criterion_reg(flow, x) * weights[2]
+                    del output, flow
+                    loss = loss_ncc + loss_reg
+                    loss_all.update(loss.item(), x.numel())
+                    # compute gradient and do SGD step
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
 
                 print(
                     'Iter {} of {} loss {:.4f}, Img Sim: {:.6f}, Reg: {:.6f}'.
@@ -162,9 +161,10 @@ def main():
                 # x_in = torch.cat((x, y), dim=1)
                 grid_img = mk_grid_img(8, 1, img_size)
                 output = model(x, y)
-                def_out = reg_model([x_seg.cuda().float(), output[1].cuda()])
-                def_grid = reg_model_bilin(
-                    [grid_img.float(), output[1].cuda()])
+                def_out = reg_model([x_seg.cuda().float(), output[1].cuda()],
+                                    mode='nearest')
+                def_grid = reg_model([grid_img.float(), output[1].cuda()],
+                                     mode='bilinear')
                 dsc = utils_abd.dice_val_VOI(def_out.long(), y_seg.long())
                 eval_dsc.update(dsc.item(), x.size(0))
                 print(eval_dsc.avg)
@@ -269,6 +269,6 @@ if __name__ == '__main__':
     GPU_avai = torch.cuda.is_available()
     print('Currently using: ' + torch.cuda.get_device_name(GPU_iden))
     print('If the GPU is available? ' + str(GPU_avai))
-    torch.manual_seed(0)
+    # torch.manual_seed(0)
     main()
     # os.system("/usr/bin/shutdown")

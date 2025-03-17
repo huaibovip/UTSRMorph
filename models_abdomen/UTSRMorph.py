@@ -8,7 +8,7 @@ import torch.nn.functional as nnf
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from einops import rearrange
-from timm.models.layers import DropPath, to_3tuple, trunc_normal_
+from timm.layers import DropPath, to_3tuple, trunc_normal_
 from torch.distributions.normal import Normal
 
 import models_abdomen.configs_UTSRMorph as configs
@@ -329,15 +329,17 @@ class OAB(nn.Module):
         coords_h = torch.arange(window_size_ori)
         coords_w = torch.arange(window_size_ori)
         coords_t = torch.arange(window_size_ori)
-        coords_ori = torch.stack(torch.meshgrid([coords_h, coords_w,
-                                                 coords_t]))  #3, ws, ws
+        coords_ori = torch.stack(
+            torch.meshgrid([coords_h, coords_w, coords_t],
+                           indexing='ij'))  #3, ws, ws
         coords_ori_flatten = torch.flatten(coords_ori, 1)  # 2, ws*ws
 
         coords_h = torch.arange(window_size_ext)
         coords_w = torch.arange(window_size_ext)
         coords_t = torch.arange(window_size_ext)
-        coords_ext = torch.stack(torch.meshgrid([coords_h, coords_w,
-                                                 coords_t]))  # 3, wse, wse
+        coords_ext = torch.stack(
+            torch.meshgrid([coords_h, coords_w, coords_t],
+                           indexing='ij'))  # 3, wse, wse
         coords_ext_flatten = torch.flatten(coords_ext, 1)  # 2, wse*wse
 
         relative_coords = coords_ext_flatten[:,
@@ -507,8 +509,9 @@ class WindowAttention(nn.Module):
         coords_h = torch.arange(self.window_size[0])
         coords_w = torch.arange(self.window_size[1])
         coords_t = torch.arange(self.window_size[2])
-        coords = torch.stack(torch.meshgrid([coords_h, coords_w,
-                                             coords_t]))  # 3, Wh, Ww, Wt
+        coords = torch.stack(
+            torch.meshgrid([coords_h, coords_w, coords_t],
+                           indexing='ij'))  # 3, Wh, Ww, Wt
         coords_flatten = torch.flatten(coords, 1)  # 3, Wh*Ww*Wt
         self.rpe = rpe
         if self.rpe:
@@ -1387,16 +1390,10 @@ class SpatialTransformer(nn.Module):
 
         # create sampling grid
         vectors = [torch.arange(0, s) for s in size]
-        grids = torch.meshgrid(vectors)
+        grids = torch.meshgrid(vectors, indexing='ij')
         grid = torch.stack(grids)
         grid = torch.unsqueeze(grid, 0)
         grid = grid.type(torch.FloatTensor)
-
-        # registering the grid as a buffer cleanly moves it to the GPU, but it also
-        # adds it to the state dict. this is annoying since everything in the state dict
-        # is included when saving weights to disk, so the model files are way bigger
-        # than they need to be. so far, there does not appear to be an elegant solution.
-        # see: https://discuss.pytorch.org/t/how-to-register-buffer-without-polluting-state-dict
         self.register_buffer('grid', grid, persistent=False)
 
     def forward(self, src, flow):

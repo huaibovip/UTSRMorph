@@ -78,18 +78,16 @@ def save_checkpoint(state,
 
 def main():
     batch_size = 1
-    # train_dir = '/home/zrs/AD_xiong/xiong/train/CT/data/'
-    # val_dir = '/home/zrs/AD_xiong/xiong/test/CT/data/'
-    train_dir = '/root/share/abdomen/train/CT/data/'
-    val_dir = '/root/share/abdomen/test/CT/data/'
+    train_dir = 'E:/abdomen/train/CT/data/'
+    val_dir = 'E:/abdomen//test/CT/data/'
     weights = [1, 1, 1]  # loss weights
     save_dir = 'UTSRMorph_mi{}_dsc{}_diffusion{}/'.format(
         weights[0], weights[1], weights[2])
-    if not os.path.exists('experiments/' + save_dir):
-        os.makedirs('experiments/' + save_dir)
-    if not os.path.exists('logs/' + save_dir):
-        os.makedirs('logs/' + save_dir)
-    sys.stdout = Logger('logs/' + save_dir)
+    if not os.path.exists('work_dirs/utdrmorph_abct/experiments/' + save_dir):
+        os.makedirs('work_dirs/utdrmorph_abct/experiments/' + save_dir)
+    if not os.path.exists('work_dirs/utdrmorph_abct/logs/' + save_dir):
+        os.makedirs('work_dirs/utdrmorph_abct/logs/' + save_dir)
+    sys.stdout = Logger('work_dirs/utdrmorph_abct/logs/' + save_dir)
     lr = 0.0002  # learning rate
     epoch_start = 0
     max_epoch = 500  #max traning epoch
@@ -112,7 +110,7 @@ def main():
     '''
     if cont_training:
         epoch_start = 201
-        model_dir = 'experiments/' + save_dir
+        model_dir = 'work_dirs/utdrmorph_abct/experiments/' + save_dir
         updated_lr = round(lr * np.power(1 - (epoch_start) / max_epoch, 0.9),
                            8)
         best_model = torch.load(
@@ -153,7 +151,7 @@ def main():
     criterion_dsc = losses.DiceLoss(num_class=5)
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
-    writer = SummaryWriter(log_dir='logs/' + save_dir)
+    writer = SummaryWriter(log_dir='work_dirs/utdrmorph_abct/logs/' + save_dir)
     for epoch in range(epoch_start, max_epoch):
         print('Training Starts')
         '''
@@ -264,8 +262,9 @@ def main():
                 'best_dsc': best_dsc,
                 'optimizer': optimizer.state_dict(),
             },
-            save_dir='experiments/' + save_dir,
-            filename='dsc{:.4f}.pth.tar'.format(eval_dsc.avg))
+            save_dir='work_dirs/utdrmorph_abct/experiments/' + save_dir,
+            filename='dsc{:.4f}_epoch{:03d}.pth.tar'.format(
+                eval_dsc.avg, epoch))
         time_end = time.time()
         alltime = (time_end - time_start) * (499 - epoch)
         timeresult = str(datetime.timedelta(seconds=alltime))

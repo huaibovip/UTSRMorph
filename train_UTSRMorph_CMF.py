@@ -55,16 +55,15 @@ def compterpoint(movingpoint):
 
 def main():
     batch_size = 1
-    train_dir = r'/home/buaaa302/pythoncodes/TransFrame/plapairsegaff/train_unaff/CT/'
-    val_dir = r'/home/buaaa302/pythoncodes/TransFrame/plapairsegaff/test_unaff/CT/data/'
+    train_dir = r'E:/CMF/train_unaff/CT/'
+    val_dir = r'E:/CMF/test_unaff/CT/data/'
     weights = [1, 1, 1]  # loss weights
-    save_dir = 'UTSRMorph_ncc_{}_dsc{}_diffusion_{}/'.format(
-        weights[0], weights[1], weights[2])
-    if not os.path.exists('experiments/' + save_dir):
-        os.makedirs('experiments/' + save_dir)
-    if not os.path.exists('logs/' + save_dir):
-        os.makedirs('logs/' + save_dir)
-    sys.stdout = Logger('logs/' + save_dir)
+    save_dir = 'UTSRMorph_ncc_{}_diffusion_{}/'.format(weights[0], weights[2])
+    if not os.path.exists('work_dirs/utsrmorph/experiments/' + save_dir):
+        os.makedirs('work_dirs/utsrmorph/experiments/' + save_dir)
+    if not os.path.exists('work_dirs/utsrmorph/logs/' + save_dir):
+        os.makedirs('work_dirs/utsrmorph/logs/' + save_dir)
+    sys.stdout = Logger('work_dirs/utsrmorph/logs/' + save_dir)
     lr = 0.0001  # learning rate
     epoch_start = 0
     max_epoch = 200  #max traning epoch
@@ -129,7 +128,7 @@ def main():
     criterion_ncc = losses.MutualInformation()
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
-    writer = SummaryWriter(log_dir='logs/' + save_dir)
+    writer = SummaryWriter(log_dir='work_dirs/utsrmorph/logs/' + save_dir)
     for epoch in range(epoch_start, max_epoch):
         print('Training Starts')
         '''
@@ -260,7 +259,7 @@ def main():
                 'best_dsc': best_dsc,
                 'optimizer': optimizer.state_dict(),
             },
-            save_dir='experiments/' + save_dir,
+            save_dir='work_dirs/utsrmorph/experiments/' + save_dir,
             filename='dsc{:.4f}.pth.tar'.format(100 - np.mean(pointtre)))
 
         time_end = time.time()
@@ -341,4 +340,4 @@ if __name__ == '__main__':
     print('If the GPU is available? ' + str(GPU_avai))
     torch.manual_seed(0)
     main()
-    os.system("/usr/bin/shutdown")
+    # os.system("/usr/bin/shutdown")

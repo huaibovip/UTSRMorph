@@ -53,7 +53,7 @@ def main():
     '''
     Initialize model
     '''
-    config = CONFIGS_UM['UTSRMorph-Large']
+    config = CONFIGS_UM['UTSRMorph']
     model = UTSRMorph.UTSRMorph(config)
     model.cuda()
     '''

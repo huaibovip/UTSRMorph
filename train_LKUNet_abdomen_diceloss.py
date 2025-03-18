@@ -81,14 +81,14 @@ def main():
     train_dir = 'abdomen/train/CT/data/'
     val_dir = 'abdomen//test/CT/data/'
     weights = [1, 1, 5]  # loss weights
-    save_dir = 'LKUNet_mi{}_dsc{}_diffusion{}/'.format(
-        weights[0], weights[1], weights[2])
+    save_dir = 'LKUNet_mi{}_dsc{}_diffusion{}/'.format(weights[0], weights[1],
+                                                       weights[2])
     if not os.path.exists('work_dirs/lkunet_abct/experiments/' + save_dir):
         os.makedirs('work_dirs/lkunet_abct/experiments/' + save_dir)
     if not os.path.exists('work_dirs/lkunet_abct/logs/' + save_dir):
         os.makedirs('work_dirs/lkunet_abct/logs/' + save_dir)
     sys.stdout = Logger('work_dirs/lkunet_abct/logs/' + save_dir)
-    lr = 0.0001  # learning rate
+    lr = 0.0002  # learning rate
     epoch_start = 0
     max_epoch = 500  #max traning epoch
     cont_training = False  #if continue training
@@ -176,14 +176,15 @@ def main():
                     output, flow = model(x, y)
                     def_segs = []
                     for i in range(5):
-                        def_seg = model.warp(
-                            x_seg_oh[:, i:i + 1, ...].float(), flow=flow.float())
+                        def_seg = model.warp(x_seg_oh[:, i:i + 1, ...].float(),
+                                             flow=flow.float())
                         def_segs.append(def_seg)
                     def_seg = torch.cat(def_segs, dim=1)
                     loss_sim = criterion_sim(output, y) * weights[0]
                     loss_reg = criterion_reg(flow, y) * weights[2]
                     del def_segs, output, flow, x_seg_oh,
-                    loss_dsc = criterion_dsc(def_seg, y_seg.long()) * weights[1]
+                    loss_dsc = criterion_dsc(def_seg,
+                                             y_seg.long()) * weights[1]
 
                     loss = loss_sim + loss_reg + loss_dsc
                     loss_all.update(loss.item(), y.numel())
@@ -193,21 +194,23 @@ def main():
                     optimizer.step()
                     del def_seg
                 else:
-                    y_seg_oh = nn.functional.one_hot(y_seg.long(), num_classes=5)
+                    y_seg_oh = nn.functional.one_hot(y_seg.long(),
+                                                     num_classes=5)
                     y_seg_oh = torch.squeeze(y_seg_oh, 1)
                     y_seg_oh = y_seg_oh.permute(0, 4, 1, 2, 3).contiguous()
 
                     output, flow = model(y, x)
                     def_segs = []
                     for i in range(5):
-                        def_seg = model.warp(
-                            y_seg_oh[:, i:i + 1, ...].float(), flow=flow.float())
+                        def_seg = model.warp(y_seg_oh[:, i:i + 1, ...].float(),
+                                             flow=flow.float())
                         def_segs.append(def_seg)
                     def_seg = torch.cat(def_segs, dim=1)
                     loss_sim = criterion_sim(output, x) * weights[0]
                     loss_reg = criterion_reg(flow, x) * weights[2]
                     del def_segs, output, flow, y_seg_oh,
-                    loss_dsc = criterion_dsc(def_seg, x_seg.long()) * weights[1]
+                    loss_dsc = criterion_dsc(def_seg,
+                                             x_seg.long()) * weights[1]
                     loss = loss_sim + loss_reg + loss_dsc
                     loss_all.update(loss.item(), x.numel())
                     # compute gradient and do SGD step
@@ -239,9 +242,11 @@ def main():
                 y_seg = data[3]
                 grid_img = mk_grid_img(8, 1, img_size)
                 output = model(x, y)
-                def_out = reg_model([x_seg.cuda().float(), output[1].cuda()],
+                def_out = reg_model(x_seg.cuda().float(),
+                                    flow=output[1].cuda(),
                                     mode='nearest')
-                def_grid = reg_model([grid_img.float(), output[1].cuda()],
+                def_grid = reg_model(grid_img.float(),
+                                     flow=output[1].cuda(),
                                      mode='bilinear')
                 dsc = utils_abd.dice_val_VOI(def_out.long(), y_seg.long())
                 eval_dsc.update(dsc.item(), x.size(0))

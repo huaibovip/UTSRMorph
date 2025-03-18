@@ -23,9 +23,9 @@ def main():
     batch_size = 1
     # train_dir = '/root/share/abdomen/train/CT/data/'
     # val_dir = '/root/share/abdomen/test/CT/data/'
-    train_dir = 'E:/abdomen/train/CT/data/'
-    val_dir = 'E:/abdomen/test/CT/data/'
-    weights = [1, 1, 0.05]  # loss weights
+    train_dir = './abdomen/train/CT/data/'
+    val_dir = './abdomen/test/CT/data/'
+    weights = [1, 1, 1]  # loss weights
     save_dir = 'DilateMorphBi_mi{}_diffusion{}/'.format(weights[0], weights[2])
     if not os.path.exists('work_dirs/dilatemorphbi/experiments/' + save_dir):
         os.makedirs('work_dirs/dilatemorphbi/experiments/' + save_dir)
@@ -42,9 +42,10 @@ def main():
     img_size = (192, 160, 192)
     model = DilateMorphBi(
         img_size=img_size,
-        dilation=[2],
-        num_heads=(2, 4, 8, 8),
-        use_checkpoint=True)
+        dilation=[2, 3],
+        num_heads=(2, 4, 8, 16),
+        use_checkpoint=True,
+    )
     model.cuda()
     '''
     Initialize spatial transformation function
@@ -150,7 +151,6 @@ def main():
                 y = data[1]
                 x_seg = data[2]
                 y_seg = data[3]
-                # x_in = torch.cat((x, y), dim=1)
                 grid_img = mk_grid_img(8, 1, img_size)
                 output = model(x, y)
                 def_out = reg_model([x_seg.cuda().float(), output[1].cuda()],

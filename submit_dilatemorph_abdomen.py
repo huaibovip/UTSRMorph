@@ -4,17 +4,14 @@ import pickle
 import time
 
 import numpy as np
-import pystrum.pynd.ndutils as nd
-import SimpleITK as itk
 import torch
 import torch.nn as nn
+import SimpleITK as sitk
 from natsort import natsorted
-from torch.utils.data import DataLoader
-from torchvision import transforms
+import pystrum.pynd.ndutils as nd
 
 import utils_abd
-from data import datasets, trans
-from models_dilatemorph import DilateMorph
+from models_dilatemorph import DilateMorph, DilateMorphNoSkip2
 from surface_distance import *
 
 
@@ -29,6 +26,23 @@ def pksave(file_name, target_seg, pred_seg, flow):
     }
     with open('work_dirs/dilatemorph/results/subject_' + file_name, 'wb') as f:
         pickle.dump(datas, f)
+
+
+def pksave(file_name, target_seg, pred_seg, flow, mov, fix, pred_img):
+    if not os.path.exists('results'):
+        os.makedirs('results')
+    out = sitk.GetImageFromArray(target_seg.astype('float32'))
+    sitk.WriteImage(out, f'results/subject{file_name[:-4]}_fseg.nii.gz')
+    out = sitk.GetImageFromArray(pred_seg.astype('float32'))
+    sitk.WriteImage(out, f'results/subject{file_name[:-4]}_wseg.nii.gz')
+    # out = sitk.GetImageFromArray(flow.astype('float32'))
+    # sitk.WriteImage(out, f'results/subject{file_name[:-4]}_flow.nii.gz')
+    out = sitk.GetImageFromArray(mov.astype('float32'))
+    sitk.WriteImage(out, f'results/subject{file_name[:-4]}_mov.nii.gz')
+    out = sitk.GetImageFromArray(fix.astype('float32'))
+    sitk.WriteImage(out, f'results/subject{file_name[:-4]}_fix.nii.gz')
+    out = sitk.GetImageFromArray(pred_img.astype('float32'))
+    sitk.WriteImage(out, f'results/subject{file_name[:-4]}_wmov.nii.gz')
 
 
 def dice_val_VOI(y_pred, y_true):
@@ -117,18 +131,20 @@ def jacobian_determinant_vxm(disp):
 
 
 def main():
-    test_dir = 'E:/abdomen/test/CT/data/'
+    test_dir = './abdomen/test/CT/data/'
     #save_dir = './result/abdomen/'
     model_idx = -1
-    weights = [1, 1, 0.05]
-    model_folder = 'DilateMorph_mi{}_diffusion{}/'.format(weights[0], weights[2])
+    weights = [1, 1, 1]
+    # model_folder = 'DilateMorph_mi{}_diffusion{}/'.format(weights[0], weights[2])
+    model_folder = 'DilateMorph_mi{}_dsc{}_diffusion{}/'.format(weights[0], weights[1], weights[2])
     model_dir = 'work_dirs/dilatemorph/experiments/' + model_folder
     img_size = (192, 160, 192)
-    model = DilateMorph(
+    model = DilateMorphNoSkip2(
         img_size=img_size,
-        # dilation=(2, 3),
-        # num_heads=(2, 4, 8, 16),
-        use_checkpoint=True)
+        dilation=[2, 3],
+        num_heads=(2, 4, 8, 16),
+        use_checkpoint=False,
+    )
     best_model = torch.load(
         model_dir + natsorted(os.listdir(model_dir))[model_idx])['state_dict']
     print('Best model: {}'.format(natsorted(os.listdir(model_dir))[model_idx]))
@@ -137,50 +153,8 @@ def main():
     img_size = (192, 160, 192)
     reg_model = utils_abd.register_model(img_size, 'nearest')
     reg_model.cuda()
-    test_composed = transforms.Compose([
-        trans.NumpyType((np.float32, np.int16)),
-    ])
-    test_set = datasets.CTMRIABDInferDataset(glob.glob(test_dir + '*.npy'),
-                                             transforms=test_composed)
-    test_loader = DataLoader(test_set,
-                             batch_size=1,
-                             shuffle=False,
-                             num_workers=1,
-                             pin_memory=True,
-                             drop_last=True)
+
     file_names = glob.glob(test_dir + '*.npy')
-    '''
-    with torch.no_grad():
-        time_start = time.time()
-        for data in file_names:
-
-            file_name = os.path.basename(data)
-            x = np.load(data)
-            x_seg = np.load(data.replace("data", "mask"))
-
-            y = np.load(data.replace("CT", "MRI"))
-            y_seg = np.load(data.replace("CT", "MRI").replace("data", "mask"))
-
-            x, y = x[None, None, ...], y[None, None, ...]
-
-            x_seg, y_seg = x_seg[None,None, ...], y_seg[None,None, ...]
-            x = np.ascontiguousarray(x)  # [Bsize,channelsHeight,,Width,Depth]
-            y = np.ascontiguousarray(y)
-            x_seg = np.ascontiguousarray(x_seg)  # [Bsize,channelsHeight,,Width,Depth]
-            y_seg = np.ascontiguousarray(y_seg)
-            x, y, x_seg, y_seg = torch.from_numpy(x).cuda(), torch.from_numpy(y).cuda(), torch.from_numpy(x_seg).cuda(), torch.from_numpy(
-                y_seg).cuda()
-            #a = file_names[stdy_idx].split('/')
-            #b=file_names[stdy_idx].split('\\')[-1].split('.')
-            #file_name = file_names[stdy_idx].split('/')[-1].split('.')[0][2:]
-            print(file_name)
-            model.eval()
-            x_in = torch.cat((x, y),dim=1)
-            x_def, flow = model(x_in)
-
-        time_end = time.time()
-        print(str((time_end - time_start) / 8.0))
-        '''
 
     with torch.no_grad():
         stdy_idx = 0
@@ -196,20 +170,20 @@ def main():
 
             y = np.load(data.replace("CT", "MRI"))
             y_seg = np.load(data.replace("CT", "MRI").replace("data", "mask"))
-            x_nii = itk.GetImageFromArray(x.astype(np.float32))
-            x_nii.SetSpacing([2, 2, 2])
+            # x_nii = itk.GetImageFromArray(x.astype(np.float32))
+            # x_nii.SetSpacing([2, 2, 2])
             #itk.WriteImage(x_nii, save_dir + file_name.replace(".npy",".nii.gz"))
 
-            x_nii = itk.GetImageFromArray(y.astype(np.float32))
-            x_nii.SetSpacing([2, 2, 2])
+            # x_nii = itk.GetImageFromArray(y.astype(np.float32))
+            # x_nii.SetSpacing([2, 2, 2])
             #itk.WriteImage(x_nii, save_dir.replace("rawct", "rawmr") + file_name.replace(".npy",".nii.gz"))
 
-            x_nii = itk.GetImageFromArray(x_seg.astype(np.int8))
-            x_nii.SetSpacing([2, 2, 2])
+            # x_nii = itk.GetImageFromArray(x_seg.astype(np.int8))
+            # x_nii.SetSpacing([2, 2, 2])
             # itk.WriteImage(x_nii, save_dir.replace("rawct", "rawctseg") + file_name.replace(".npy",".nii.gz"))
 
-            x_nii = itk.GetImageFromArray(y_seg.astype(np.int8))
-            x_nii.SetSpacing([2, 2, 2])
+            # x_nii = itk.GetImageFromArray(y_seg.astype(np.int8))
+            # x_nii.SetSpacing([2, 2, 2])
             # itk.WriteImage(x_nii, save_dir.replace("rawct", "rawmrseg") + file_name.replace(".npy",".nii.gz"))
             #x, y, x_seg, y_seg = utils.pkload(data)
             x, y = x[None, None, ...], y[None, None, ...]
@@ -243,10 +217,15 @@ def main():
             x_segs = torch.cat(x_segs, dim=1)
             # dicemean:0.6950645906532701dicestd:0.20142164791209782
             def_out = torch.argmax(x_segs, dim=1, keepdim=True)
-            pksave(file_name,
-                   y_seg.cpu().numpy(),
-                   def_out.cpu().numpy(),
-                   flow.cpu().numpy())
+            pksave(
+                file_name,
+                y_seg.cpu().numpy(),
+                def_out.cpu().numpy(),
+                flow.cpu().numpy(),
+                x.cpu().numpy(),
+                y.cpu().numpy(),
+                x_def.cpu().numpy(),
+            )
             del x_segs, x_seg_oh
             # def_out = reg_model([x_seg.cuda().float(), flow.cuda()])
             tar = y.detach().cpu().numpy()[0, 0, :, :, :]
@@ -260,16 +239,16 @@ def main():
 
             stdy_idx += 1
             #def_out = def_out.long().cpu().detach().numpy()[0, 0, ...].astype(np.int8)
-            x_nii = itk.GetImageFromArray(
-                def_out.long().cpu().detach().numpy()[0, 0,
-                                                      ...].astype(np.int8))
-            x_nii.SetSpacing([2, 2, 2])
+            # x_nii = itk.GetImageFromArray(
+            #     def_out.long().cpu().detach().numpy()[0, 0,
+            #                                           ...].astype(np.int8))
+            # x_nii.SetSpacing([2, 2, 2])
             #itk.WriteImage(x_nii, save_dir.replace("rawct", "resultmrseg") + file_name.replace(".npy",".nii.gz"))
             print(x_def.cpu().detach().numpy()[0, 0,
                                                ...].astype(np.float32).shape)
-            x_nii = itk.GetImageFromArray(
-                x_def.cpu().detach().numpy()[0, 0, ...].astype(np.float32))
-            x_nii.SetSpacing([2, 2, 2])
+            # x_nii = itk.GetImageFromArray(
+            #     x_def.cpu().detach().numpy()[0, 0, ...].astype(np.float32))
+            # x_nii.SetSpacing([2, 2, 2])
             # itk.WriteImage(x_nii, save_dir.replace("rawct", "resultmr") + file_name.replace(".npy",".nii.gz"))
 
             flow = flow.cpu().detach().numpy()[0]

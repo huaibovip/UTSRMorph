@@ -24,9 +24,9 @@ from models_dilatemorph import DilateMorphBi
 
 def main():
     batch_size = 1
-    train_dir = 'E:/abdomen/train/CT/data/'
-    val_dir = 'E:/abdomen/test/CT/data/'
-    weights = [1, 1, 0.05]  # loss weights
+    train_dir = './abdomen/train/CT/data/'
+    val_dir = './abdomen/test/CT/data/'
+    weights = [1, 1, 0.5]  # loss weights
     save_dir = 'DilateMorphBi_mi{}_dsc{}_diffusion{}/'.format(
         weights[0], weights[1], weights[2])
     if not os.path.exists('work_dirs/dilatemorphbi/experiments/' + save_dir):
@@ -34,7 +34,7 @@ def main():
     if not os.path.exists('work_dirs/dilatemorphbi/logs/' + save_dir):
         os.makedirs('work_dirs/dilatemorphbi/logs/' + save_dir)
     sys.stdout = Logger('work_dirs/dilatemorphbi/logs/' + save_dir)
-    lr = 0.0004  # learning rate
+    lr = 0.0002  # learning rate
     epoch_start = 0
     max_epoch = 500  #max traning epoch
     cont_training = False  #if continue training
@@ -44,8 +44,8 @@ def main():
     img_size = (192, 160, 192)
     model = DilateMorphBi(
         img_size=img_size,
-        dilation=[2],
-        num_heads=(2, 4, 8, 8),
+        dilation=[2, 3],
+        num_heads=(2, 4, 8, 16),
         use_checkpoint=True,
     )
     model.cuda()
@@ -140,10 +140,10 @@ def main():
                                               flow=mov_flow.float())
                         def_segs.append(def_xseg)
                     def_xseg = torch.cat(def_segs, dim=1)
-                    del x_seg_oh, def_segs, x_seg
+                    del x_seg_oh, def_segs
                     loss_dsc1 = criterion_dsc(def_xseg,
                                               y_seg.long()) * weights[1]
-                    del y_seg, def_xseg, mov_flow
+                    del def_xseg, mov_flow
 
                     y_seg_oh = F.one_hot(
                         y_seg.long(),
@@ -155,11 +155,11 @@ def main():
                                               flow=fix_flow.float())
                         def_segs.append(def_yseg)
                     def_yseg = torch.cat(def_segs, dim=1)
-                    del x_seg_oh, def_segs, y_seg
+                    del y_seg_oh, def_segs, y_seg
                     loss_dsc2 = criterion_dsc(def_yseg,
                                               x_seg.long()) * weights[1]
                     del x_seg, def_yseg, fix_flow
-                    
+
                     loss_dsc = 0.5 * (loss_dsc1 + loss_dsc2)
                     loss = loss_sim + loss_reg + loss_dsc
                     loss_all.update(loss.item(), y.numel())
@@ -167,14 +167,13 @@ def main():
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                    del def_seg
 
                 print(
                     'Iter {} of {} loss {:.4f}, Img Sim: {:.6f}, Dsc: {:.6f}, Reg: {:.6f}'
                     .format(idx,
                             len(train_loader) * 8, loss.item(),
-                            loss_ncc.item(), loss_dsc.item(), loss_reg.item()))
-                del loss, loss_dsc, loss_ncc, loss_reg
+                            loss_sim.item(), loss_dsc.item(), loss_reg.item()))
+                del loss, loss_dsc, loss_sim, loss_reg
 
         writer.add_scalar('Loss/train', loss_all.avg, epoch)
         print('Epoch {} loss {:.4f}'.format(epoch, loss_all.avg))

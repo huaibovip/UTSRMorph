@@ -15,13 +15,11 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
 import losses
-import models_CMF.UTSRMorph as UTSRMorph
 import utils_CMF
 from data import datasets, trans
-from models_CMF.UTSRMorph import CONFIGS as CONFIGS_TM
+from models_dilatemorph import DilateMorphBi
 
 
-#from utilsconfig.config import args
 class Logger(object):
 
     def __init__(self, save_dir):
@@ -58,12 +56,12 @@ def main():
     train_dir = '/root/share/CMF/train_unaff/CT/'
     val_dir = '/root/share/CMF/test_unaff/CT/data/'
     weights = [1, 1, 1]  # loss weights
-    save_dir = 'UTSRMorph_mi_{}_diffusion_{}/'.format(weights[0], weights[2])
-    if not os.path.exists('work_dirs/utsrmorph/experiments/' + save_dir):
-        os.makedirs('work_dirs/utsrmorph/experiments/' + save_dir)
-    if not os.path.exists('work_dirs/utsrmorph/logs/' + save_dir):
-        os.makedirs('work_dirs/utsrmorph/logs/' + save_dir)
-    sys.stdout = Logger('work_dirs/utsrmorph/logs/' + save_dir)
+    save_dir = 'DilateMorphBi_mi{}_diffusion{}/'.format(weights[0], weights[2])
+    if not os.path.exists('work_dirs/dilatemorphbi/experiments/' + save_dir):
+        os.makedirs('work_dirs/dilatemorphbi/experiments/' + save_dir)
+    if not os.path.exists('work_dirs/dilatemorphbi/logs/' + save_dir):
+        os.makedirs('work_dirs/dilatemorphbi/logs/' + save_dir)
+    sys.stdout = Logger('work_dirs/dilatemorphbi/logs/' + save_dir)
     lr = 0.0001  # learning rate
     epoch_start = 0
     max_epoch = 200  #max traning epoch
@@ -71,17 +69,17 @@ def main():
     '''
     Initialize model
     '''
-    config = CONFIGS_TM['UTSRMorph']
-    model = UTSRMorph.UTSRMorph(config)
-    #model = TransMatch(args)
+    img_size = (128, 192, 224)
+    model = DilateMorphBi(img_size=img_size,
+                          dilation=[2, 3],
+                          num_heads=[2, 4, 8, 16],
+                          use_checkpoint=True)
     model.cuda()
     '''
     Initialize spatial transformation function
     '''
-    reg_model = utils_CMF.register_model(config.img_size, 'nearest')
+    reg_model = utils_CMF.Warp(img_size)
     reg_model.cuda()
-    reg_model_bilin = utils_CMF.register_model(config.img_size, 'bilinear')
-    reg_model_bilin.cuda()
     '''
     If continue from previous training
     '''
@@ -128,7 +126,7 @@ def main():
     criterion_sim = losses.MutualInformation()
     criterion_reg = losses.Grad3d(penalty='l2')
     best_dsc = 0
-    writer = SummaryWriter(log_dir='work_dirs/utsrmorph/logs/' + save_dir)
+    writer = SummaryWriter(log_dir='work_dirs/dilatemorphbi/logs/' + save_dir)
     for epoch in range(epoch_start, max_epoch):
         print('Training Starts')
         '''
@@ -143,40 +141,25 @@ def main():
                 model.train()
                 adjust_learning_rate(optimizer, epoch, max_epoch, lr)
                 data = [t.cuda() for t in data]
-
                 x = data[0]
                 y = data[1]
 
-                if (random.random() <= 0.5):
-
-                    x_in = torch.cat((x, y), dim=1)
-                    output, flow = model(x_in)  # x=moving image, y=fixed image
-
-                    loss_sim = criterion_sim(output, y) * weights[0]
-                    del output
-
-                    loss_reg = criterion_reg(flow, y) * weights[2]
+                if True:
+                    warped_mov, warped_fix, mov_flow, fix_flow = model(
+                        x, y, training=True)
+                    loss_sim = 0.5 * (
+                        criterion_sim(warped_mov, y) +
+                        criterion_sim(warped_fix, x)) * weights[0]
+                    loss_reg = 0.5 * (
+                        criterion_reg(mov_flow, None) +
+                        criterion_reg(fix_flow, None)) * weights[2]
+                    del warped_mov, warped_fix, mov_flow, fix_flow
                     loss = loss_sim + loss_reg
                     loss_all.update(loss.item(), y.numel())
                     # compute gradient and do SGD step
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
-                    del flow
-                else:
-                    y_in = torch.cat((y, x), dim=1)
-                    output, flow = model(y_in)
-                    loss_sim = criterion_sim(output, x) * weights[0]
-
-                    loss_reg = criterion_reg(flow, x) * weights[2]
-                    loss = loss_sim + loss_reg
-                    loss_all.update(loss.item(), x.numel())
-                    # compute gradient and do SGD step
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                    del flow
-                # del y_seg_oh, def_segs, def_seg
                 print(
                     'Iter {} of {} loss {:.4f}, Img Sim: {:.6f}, Reg: {:.6f}'.
                     format(idx, 15 * len(train_loader), loss.item(),
@@ -198,11 +181,11 @@ def main():
                 y = data[0]
                 x_seg = data[3]
                 y_seg = data[2]
-                x_in = torch.cat((x, y), dim=1)
-                grid_img = mk_grid_img(8, 1, config.img_size)
-                output = model(x_in)
-                def_out = reg_model([x_seg.cuda().float(), output[1].cuda()])
-
+                grid_img = mk_grid_img(8, 1, img_size)
+                output = model(x, y)
+                # def_out = reg_model([x_seg.cuda().float(), output[1].cuda()])
+                def_out = reg_model([x_seg.cuda().float(), output[1].cuda()],
+                                    mode='nearest')
                 movingfro = x_seg.detach().cpu().numpy()[0, 0, ...]
                 fixfro = y_seg.detach().cpu().numpy()[0, 0, ...]
                 movingfro = compterpoint(movingfro)
@@ -222,15 +205,17 @@ def main():
                         distancepro.append(tre)
                         effectindex.append(j)
 
-                def_grid = reg_model_bilin(
-                    [grid_img.float(), output[1].cuda()])
+                # def_grid = reg_model_bilin(
+                #     [grid_img.float(), output[1].cuda()])
+                def_grid = reg_model([grid_img.float(), output[1].cuda()],
+                                     mode='bilinear')
 
                 distance = []
-                flow = output[1].squeeze().permute(1, 2, 3,
-                                                   0)  # (160, 192, 224, 3)
+                # (160, 192, 224, 3)
+                flow = output[1].squeeze().permute(1, 2, 3, 0)
                 fix_point = fixfro[np.newaxis, ...]  # (1, 300, 3)
-                dvf_Data = flow.cuda().data.cpu().numpy().squeeze(
-                )  # 如果要保存的话，可以保存
+                # 如果要保存的话，可以保存
+                dvf_Data = flow.cuda().data.cpu().numpy().squeeze()
                 data = [
                     torch.from_numpy(t).cuda() for t in [fix_point, dvf_Data]
                 ]  # 由于point_spatial_transformer使用了torch，组装在一起
@@ -259,8 +244,9 @@ def main():
                 'best_dsc': best_dsc,
                 'optimizer': optimizer.state_dict(),
             },
-            save_dir='work_dirs/utsrmorph/experiments/' + save_dir,
-            filename='dsc{:.4f}_epoch{:03d}.pth.tar'.format(100 - np.mean(pointtre), epoch))
+            save_dir='work_dirs/dilatemorphbi/experiments/' + save_dir,
+            filename='dsc{:.4f}_epoch{:03d}.pth.tar'.format(
+                100 - np.mean(pointtre), epoch))
 
         time_end = time.time()
         alltime = (time_end - time_start) * (199 - epoch)

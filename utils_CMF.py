@@ -59,16 +59,10 @@ class SpatialTransformer(nn.Module):
 
         # create sampling grid
         vectors = [torch.arange(0, s) for s in size]
-        grids = torch.meshgrid(vectors)
+        grids = torch.meshgrid(vectors, indexing='ij')
         grid = torch.stack(grids)
         grid = torch.unsqueeze(grid, 0)
         grid = grid.type(torch.FloatTensor).cuda()
-
-        # registering the grid as a buffer cleanly moves it to the GPU, but it also
-        # adds it to the state dict. this is annoying since everything in the state dict
-        # is included when saving weights to disk, so the model files are way bigger
-        # than they need to be. so far, there does not appear to be an elegant solution.
-        # see: https://discuss.pytorch.org/t/how-to-register-buffer-without-polluting-state-dict
         self.register_buffer('grid', grid, persistent=False)
 
     def forward(self, src, flow):
@@ -106,6 +100,19 @@ class register_model(nn.Module):
         img = x[0].cuda()
         flow = x[1].cuda()
         out = self.spatial_trans(img, flow)
+        return out
+
+
+class Warp(nn.Module):
+
+    def __init__(self, img_size):
+        super().__init__()
+        self.spatial_trans = SpatialTransformer(img_size, mode='bilinear')
+
+    def forward(self, x, mode='bilinear'):
+        img = x[0].cuda()
+        flow = x[1].cuda()
+        out = self.spatial_trans(img, flow, mode=mode)
         return out
 
 

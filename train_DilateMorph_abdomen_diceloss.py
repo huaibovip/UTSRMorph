@@ -19,14 +19,14 @@ from torchvision import transforms
 import losses
 import utils_abd
 from data import datasets, trans
-from models_dilatemorph import DilateMorph, DilateMorphCoarseToFine
+from models_dilatemorph import DilateMorph, DilateMorphCoarseToFine, DilateMorphNoSkip2
 
 
 def main():
     batch_size = 1
-    train_dir = 'E:/abdomen/train/CT/data/'
-    val_dir = 'E:/abdomen/test/CT/data/'
-    weights = [1, 1, 0.05]  # loss weights
+    train_dir = 'abdomen/train/CT/data/'
+    val_dir = 'abdomen/test/CT/data/'
+    weights = [1, 1, 1]  # loss weights
     save_dir = 'DilateMorph_mi{}_dsc{}_diffusion{}/'.format(
         weights[0], weights[1], weights[2])
     if not os.path.exists('work_dirs/dilatemorph/experiments/' + save_dir):
@@ -34,7 +34,7 @@ def main():
     if not os.path.exists('work_dirs/dilatemorph/logs/' + save_dir):
         os.makedirs('work_dirs/dilatemorph/logs/' + save_dir)
     sys.stdout = Logger('work_dirs/dilatemorph/logs/' + save_dir)
-    lr = 0.0004  # learning rate
+    lr = 0.0002  # learning rate
     epoch_start = 0
     max_epoch = 500  #max traning epoch
     cont_training = False  #if continue training
@@ -42,10 +42,10 @@ def main():
     Initialize model
     '''
     img_size = (192, 160, 192)
-    model = DilateMorph(
+    model = DilateMorphNoSkip2(
         img_size=img_size,
-        dilation=[2],
-        num_heads=(2, 4, 8, 8),
+        dilation=[2, 3],
+        num_heads=(2, 4, 8, 16),
         use_checkpoint=True,
     )
     model.cuda()

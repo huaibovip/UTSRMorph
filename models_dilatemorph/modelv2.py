@@ -130,8 +130,9 @@ class DilateMorph(BaseModule):
 
         out = self.transformer(source, target)
 
-        mov_f0, fix_f0 = out[-1]
-        x = self.up0(mov_f0, out[-2][0], out[-2][1])
+        # x = out[-1][0]
+        x = out[-1][0] + out[-1][1]
+        x = self.up0(x, out[-2][0], out[-2][1])
         x = self.up1(x, out[-3][0], out[-3][1])
         x = self.up2(x, out[-4][0], out[-4][1])
         x = self.up3(x, f4)
@@ -257,6 +258,133 @@ class DilateMorph1(BaseModule):
         x = self.up1(x, out[-3][0], out[-3][1])
         x = self.up2(x, out[-4][0], out[-4][1])
         x = self.up3(x, mov_f4, fix_f4)
+        x = self.up(x)
+        flow = self.flow(x)
+        warped = self.warp(source, flow=flow)
+        return warped, flow
+
+#@MODELS.register_module()
+class DilateMorphNoSkip2(BaseModule):
+
+    def __init__(
+        self,
+        img_size,
+        in_chans=1,
+        embed_dim=96,
+        patch_size=4,
+        depths=(2, 2, 4, 2),
+        num_heads=(3, 6, 12, 24),
+        dilation=(1, 2, 3),
+        kernel_size=3,
+        mlp_ratio=4,
+        qkv_bias=True,
+        qk_scale=None,
+        drop_rate=0,
+        attn_drop_rate=0,
+        drop_path_rate=0.2,
+        patch_way="overlaping",
+        merging_way="conv3_2",
+        dilate_attention=[True, True, False, False],
+        downsamples=[True, True, True, False],
+        cpe_per_satge=False,
+        cpe_per_block=True,
+        out_indices=(0, 1, 2, 3),
+        if_convskip=True,
+        if_transskip=True,
+        frozen_stages=-1,
+        use_checkpoint=False,
+        init_cfg=None,
+        ndim=3,
+        use_mind_ssc=True,
+    ):
+        super().__init__(init_cfg=init_cfg)
+        self.if_convskip = if_convskip
+        self.if_transskip = if_transskip
+        mode = "trilinear" if ndim == 3 else 'bilinear'
+
+        if self.if_convskip:
+            self.avg_pool = getattr(nn, f'AvgPool{ndim}d')(3,
+                                                           stride=2,
+                                                           padding=1)
+            self.c1 = ConvReLU(ndim,
+                               2 * 12,
+                               embed_dim // 2,
+                               3,
+                               1,
+                               use_batchnorm=False)
+
+        self.transformer = DilateFormer(
+            ndim=ndim,
+            img_size=img_size,
+            in_chans=in_chans,
+            embed_dim=embed_dim,
+            patch_size=patch_size,
+            depths=depths,
+            num_heads=num_heads,
+            dilation=dilation,
+            kernel_size=kernel_size,
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            drop_rate=drop_rate,
+            attn_drop_rate=attn_drop_rate,
+            drop_path_rate=drop_path_rate,
+            # norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            patch_way=patch_way,
+            merging_way=merging_way,
+            dilate_attention=dilate_attention,
+            downsamples=downsamples,
+            cpe_per_satge=cpe_per_satge,
+            cpe_per_block=cpe_per_block,
+            out_indices=out_indices,
+            frozen_stages=frozen_stages,
+            use_checkpoint=use_checkpoint)
+        self.up0 = DecoderBlock(ndim,
+                                embed_dim * 8,
+                                embed_dim * 4,
+                                skip_channels=embed_dim *
+                                4 if if_transskip else 0,
+                                use_batchnorm=False,
+                                skip2=False)
+        self.up1 = DecoderBlock(ndim,
+                                embed_dim * 4,
+                                embed_dim * 2,
+                                skip_channels=embed_dim *
+                                2 if if_transskip else 0,
+                                use_batchnorm=False,
+                                skip2=False)
+        self.up2 = DecoderBlock(ndim,
+                                embed_dim * 2,
+                                embed_dim,
+                                skip_channels=embed_dim if if_transskip else 0,
+                                use_batchnorm=False,
+                                skip2=False)
+        self.up3 = DecoderBlock(ndim,
+                                embed_dim,
+                                embed_dim // 2,
+                                skip_channels=embed_dim //
+                                2 if if_convskip else 0,
+                                use_batchnorm=False,
+                                skip2=False)
+        self.up = nn.Upsample(scale_factor=2, mode=mode, align_corners=False)
+        self.flow = DefaultFlow(embed_dim // 2)
+        self.warp = Warp(img_size)
+
+    def forward(self, source: Tensor, target: Tensor, **kwargs):
+        if self.if_convskip:
+            x = torch.cat((mind_ssc(source), mind_ssc(target)), dim=1)
+            x_s1 = self.avg_pool(x)
+            f4 = self.c1(x_s1)
+        else:
+            f4 = None
+
+        out = self.transformer(source, target)
+
+        x = out[-1][0] + out[-1][1]
+        x = self.up0(x, out[-2][0] + out[-2][1])
+        x = self.up1(x, out[-3][0] + out[-3][1])
+        x = self.up2(x, out[-4][0] + out[-4][1])
+        x = self.up3(x, f4)
         x = self.up(x)
         flow = self.flow(x)
         warped = self.warp(source, flow=flow)

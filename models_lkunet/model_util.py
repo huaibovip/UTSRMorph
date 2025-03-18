@@ -78,8 +78,8 @@ class Warp(nn.Module):
             Tensor: Warped image.
         """
 
-        if interp_mode is None:
-            interp_mode = self.default_interp_mode
+        if mode is None:
+            mode = self.default_interp_mode
 
         # warped deformation filed
         warped_grid = self.grid.to(flow) + flow
@@ -99,7 +99,7 @@ class Warp(nn.Module):
         return F.grid_sample(
             image,
             warped_grid,
-            mode=interp_mode,
+            mode=mode,
             padding_mode=self.padding_mode,
             align_corners=self.align_corners,
         )

@@ -95,12 +95,12 @@ def main():
     '''
     Initialize model
     '''
-    model = LKUNet()
+    img_size = (192, 160, 192)
+    model = LKUNet(img_szie=img_size, embed_dim=16)
     model.cuda()
     '''
     Initialize spatial transformation function
     '''
-    img_size = (192, 160, 192)
     reg_model = Warp(img_size, normalization=True)
     reg_model.cuda()
     '''
@@ -176,13 +176,13 @@ def main():
                     output, flow = model(x, y)
                     def_segs = []
                     for i in range(5):
-                        def_seg = model.spatial_trans(
-                            x_seg_oh[:, i:i + 1, ...].float(), flow.float())
+                        def_seg = model.warp(
+                            x_seg_oh[:, i:i + 1, ...].float(), flow=flow.float())
                         def_segs.append(def_seg)
                     def_seg = torch.cat(def_segs, dim=1)
                     loss_sim = criterion_sim(output, y) * weights[0]
                     loss_reg = criterion_reg(flow, y) * weights[2]
-                    del x_in, def_segs, output, flow, x_seg_oh,
+                    del def_segs, output, flow, x_seg_oh,
                     loss_dsc = criterion_dsc(def_seg, y_seg.long()) * weights[1]
 
                     loss = loss_sim + loss_reg + loss_dsc
@@ -200,13 +200,13 @@ def main():
                     output, flow = model(y, x)
                     def_segs = []
                     for i in range(5):
-                        def_seg = model.spatial_trans(
-                            y_seg_oh[:, i:i + 1, ...].float(), flow.float())
+                        def_seg = model.warp(
+                            y_seg_oh[:, i:i + 1, ...].float(), flow=flow.float())
                         def_segs.append(def_seg)
                     def_seg = torch.cat(def_segs, dim=1)
                     loss_sim = criterion_sim(output, x) * weights[0]
                     loss_reg = criterion_reg(flow, x) * weights[2]
-                    del y_in, def_segs, output, flow, y_seg_oh,
+                    del def_segs, output, flow, y_seg_oh,
                     loss_dsc = criterion_dsc(def_seg, x_seg.long()) * weights[1]
                     loss = loss_sim + loss_reg + loss_dsc
                     loss_all.update(loss.item(), x.numel())
@@ -237,7 +237,7 @@ def main():
                 y = data[1]
                 x_seg = data[2]
                 y_seg = data[3]
-                grid_img = mk_grid_img(8, 1, config.img_size)
+                grid_img = mk_grid_img(8, 1, img_size)
                 output = model(x, y)
                 def_out = reg_model([x_seg.cuda().float(), output[1].cuda()],
                                     mode='nearest')

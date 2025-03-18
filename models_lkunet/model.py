@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from .model_util import Warp
 
 
 # @MODELS.register_module()
@@ -7,6 +8,7 @@ class LKUNet(nn.Module):
 
     def __init__(
         self,
+        img_szie,
         in_dim=2,
         out_dim=3,
         embed_dim=16,
@@ -160,6 +162,7 @@ class LKUNet(nn.Module):
             stride=1,
             padding=1,
             bias=False)
+        self.warp = Warp(img_size=img_szie, normalization=True)
 
     def encoder(self,
                 in_channels,
@@ -288,7 +291,8 @@ class LKUNet(nn.Module):
         d3 = self.dc8(d3)
 
         flow = self.dc9(d3)
-        return flow
+        def_out = self.warp(source, flow=flow)
+        return def_out, flow
 
 
 # @MODELS.register_module()
